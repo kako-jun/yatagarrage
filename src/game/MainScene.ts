@@ -20,6 +20,8 @@ export class MainScene extends Phaser.Scene {
   private fireRate = 200 // 200msごとに発射可能
   private enemySpawnTimer?: Phaser.Time.TimerEvent
   private instructionText?: Phaser.GameObjects.Text
+  private stageNameText?: Phaser.GameObjects.Text
+  private debugText?: Phaser.GameObjects.Text
 
   // 残像エフェクト用
   private playerTrail: TrailPoint[] = []
@@ -47,6 +49,9 @@ export class MainScene extends Phaser.Scene {
 
   create() {
     // 背景色は設定ファイルで指定済み（黒）
+
+    // UI帯を描画
+    this.createUIBars()
 
     // プレイヤーを作成
     this.createPlayer()
@@ -123,6 +128,37 @@ export class MainScene extends Phaser.Scene {
       callbackScope: this,
       loop: true,
     })
+  }
+
+  private createUIBars() {
+    // 左側の青い帯（縦長）
+    const leftBar = this.add.graphics()
+    leftBar.fillStyle(0x0000ff, 0.8)
+    leftBar.fillRect(0, 0, 60, 600)
+    leftBar.setDepth(1000)
+
+    // ステージ名を縦書きで表示
+    const stageName = 'STAGE 1'
+    this.stageNameText = this.add.text(30, 300, stageName.split('').join('\n'), {
+      fontSize: '20px',
+      color: '#ffffff',
+      align: 'center'
+    })
+    this.stageNameText.setOrigin(0.5, 0.5)
+    this.stageNameText.setDepth(1001)
+
+    // 下端の青い帯（横長）
+    const bottomBar = this.add.graphics()
+    bottomBar.fillStyle(0x0000ff, 0.8)
+    bottomBar.fillRect(0, 560, 800, 40)
+    bottomBar.setDepth(1000)
+
+    // デバッグメッセージ表示
+    this.debugText = this.add.text(70, 570, 'Debug: Ready', {
+      fontSize: '16px',
+      color: '#ffffff'
+    })
+    this.debugText.setDepth(1001)
   }
 
   private createPlayer() {
@@ -335,6 +371,9 @@ export class MainScene extends Phaser.Scene {
 
     // プレイヤーの描画
     this.drawPlayer()
+
+    // デバッグ情報を更新
+    this.updateDebugInfo()
 
     // 弾が画面外に出たら削除
     this.bullets?.children.entries.forEach(bullet => {
@@ -558,6 +597,20 @@ export class MainScene extends Phaser.Scene {
         this.time.delayedCall(50, () => bg.destroy())
       }
     })
+  }
+
+  private updateDebugInfo() {
+    if (!this.debugText || !this.player) return
+
+    const playerX = Math.floor(this.player.x)
+    const playerY = Math.floor(this.player.y)
+    const bulletCount = this.bullets?.getLength() || 0
+    const enemyCount = this.enemies?.getLength() || 0
+    const enemyBulletCount = this.enemyBullets?.getLength() || 0
+
+    this.debugText.setText(
+      `Debug: Player(${playerX},${playerY}) | Bullets:${bulletCount} | Enemies:${enemyCount} | EnemyBullets:${enemyBulletCount}`
+    )
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
