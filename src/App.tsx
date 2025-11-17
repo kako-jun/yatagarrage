@@ -16,11 +16,11 @@ function App() {
           <p>
             操作方法：
             <br />
-            矢印キー: 移動
+            画面外周タップ: 射撃
             <br />
-            スペースキー: 弾を発射
+            中央部分タップ: 移動
             <br />
-            タップでも操作できます
+            敵の弾幕は重力の影響を受けます！
           </p>
           <button onClick={() => setGameStarted(true)}>ゲームを開始</button>
         </div>
