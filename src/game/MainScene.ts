@@ -71,7 +71,7 @@ export class MainScene extends Phaser.Scene {
     this.instructionText = this.add.text(
       400,
       16,
-      '操作: 画面上半分タップで射撃 / 画面下半分タップで移動',
+      '操作: 画面外周タップで射撃 / 中央部分タップで移動',
       {
         fontSize: '16px',
         color: '#aaaaaa',
@@ -563,9 +563,16 @@ export class MainScene extends Phaser.Scene {
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
     if (this.gameOver) return
 
-    // 画面を上下に分割：上半分で射撃、下半分で移動
-    if (pointer.y < 300) {
-      // 上半分：射撃
+    // 画面外周の判定（画面端から100ピクセル以内）
+    const edgeThreshold = 100
+    const isEdge =
+      pointer.x < edgeThreshold || // 左端
+      pointer.x > 800 - edgeThreshold || // 右端
+      pointer.y < edgeThreshold || // 上端
+      pointer.y > 600 - edgeThreshold // 下端
+
+    if (isEdge) {
+      // 外周：射撃
       this.shootBullet(pointer.x, pointer.y)
 
       // 射撃インジケーターを表示
@@ -579,7 +586,7 @@ export class MainScene extends Phaser.Scene {
       // インジケーターをフェードアウト
       this.time.delayedCall(200, () => this.shootIndicator?.clear())
     } else {
-      // 下半分：移動
+      // 中央部分：移動
       this.moveIndicator?.clear()
       this.moveIndicator?.fillStyle(0x00ff00, 0.3)
       this.moveIndicator?.fillCircle(pointer.x, pointer.y, 20)
