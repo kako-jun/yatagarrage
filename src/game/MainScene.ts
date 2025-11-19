@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { GravityField } from './gravityField'
 
 // 残像エフェクト用の型定義
 interface TrailPoint {
@@ -10,6 +11,8 @@ interface TrailPoint {
 
 export class MainScene extends Phaser.Scene {
   private player?: Phaser.Physics.Arcade.Sprite
+  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys
+  private spaceKey?: Phaser.Input.Keyboard.Key
   private bullets?: Phaser.Physics.Arcade.Group
   private enemies?: Phaser.Physics.Arcade.Group
   private enemyBullets?: Phaser.Physics.Arcade.Group
@@ -22,22 +25,21 @@ export class MainScene extends Phaser.Scene {
   private instructionText?: Phaser.GameObjects.Text
   private stageNameText?: Phaser.GameObjects.Text
   private debugText?: Phaser.GameObjects.Text
+  private gravityField?: GravityField
 
   // 残像エフェクト用
   private playerTrail: TrailPoint[] = []
-  private bulletTrails: Map<Phaser.Physics.Arcade.Sprite, TrailPoint[]> = new Map()
-  private enemyTrails: Map<Phaser.Physics.Arcade.Sprite, TrailPoint[]> = new Map()
-  private enemyBulletTrails: Map<Phaser.Physics.Arcade.Sprite, TrailPoint[]> = new Map()
+  private bulletTrails: Map<Phaser.Physics.Arcade.Sprite, TrailPoint[]> =
+    new Map()
+  private enemyTrails: Map<Phaser.Physics.Arcade.Sprite, TrailPoint[]> =
+    new Map()
+  private enemyBulletTrails: Map<Phaser.Physics.Arcade.Sprite, TrailPoint[]> =
+    new Map()
   private maxTrailLength = 10
 
   // タップ移動用
   private moveIndicator?: Phaser.GameObjects.Graphics
   private shootIndicator?: Phaser.GameObjects.Graphics
-
-  // 重力システム用
-  private gravityCenter = { x: 0, y: 0 }
-  private gravityCenterAngle = 0
-  private gravityStrength = 100
 
   constructor() {
     super({ key: 'MainScene' })
@@ -93,8 +95,15 @@ export class MainScene extends Phaser.Scene {
     this.shootIndicator = this.add.graphics()
     this.shootIndicator.setDepth(50)
 
+    // キーボード入力
+    this.cursors = this.input.keyboard?.createCursorKeys()
+    this.spaceKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.SPACE
+    )
+
     // タッチ/クリック入力
     this.input.on('pointerdown', this.handlePointerDown, this)
+    this.input.on('pointermove', this.handlePointerMove, this)
 
     // 衝突判定
     this.physics.add.overlap(
@@ -128,6 +137,11 @@ export class MainScene extends Phaser.Scene {
       callbackScope: this,
       loop: true,
     })
+
+    this.gravityField = new GravityField(this)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.gravityField?.destroy()
+    })
   }
 
   private createUIBars() {
@@ -139,11 +153,16 @@ export class MainScene extends Phaser.Scene {
 
     // ステージ名を縦書きで表示
     const stageName = 'STAGE 1'
-    this.stageNameText = this.add.text(30, 300, stageName.split('').join('\n'), {
-      fontSize: '20px',
-      color: '#ffffff',
-      align: 'center'
-    })
+    this.stageNameText = this.add.text(
+      30,
+      300,
+      stageName.split('').join('\n'),
+      {
+        fontSize: '20px',
+        color: '#ffffff',
+        align: 'center',
+      }
+    )
     this.stageNameText.setOrigin(0.5, 0.5)
     this.stageNameText.setDepth(1001)
 
@@ -156,7 +175,7 @@ export class MainScene extends Phaser.Scene {
     // デバッグメッセージ表示
     this.debugText = this.add.text(70, 570, 'Debug: Ready', {
       fontSize: '16px',
-      color: '#ffffff'
+      color: '#ffffff',
     })
     this.debugText.setDepth(1001)
   }
@@ -207,7 +226,7 @@ export class MainScene extends Phaser.Scene {
           this.enemyShoot(enemy)
         }
       },
-      loop: true
+      loop: true,
     })
 
     // 敵が破壊されたときにタイマーを削除
@@ -238,10 +257,7 @@ export class MainScene extends Phaser.Scene {
         const angle = baseAngle + (i - 2) * spread
 
         const speed = 200
-        bullet.setVelocity(
-          Math.cos(angle) * speed,
-          Math.sin(angle) * speed
-        )
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
 
         // 残像エフェクト用の配列を初期化
         this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
@@ -274,10 +290,7 @@ export class MainScene extends Phaser.Scene {
 
       // 速度を設定（角度に基づいて）
       const speed = 500
-      bullet.setVelocity(
-        Math.cos(angle) * speed,
-        Math.sin(angle) * speed
-      )
+      bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
 
       // 残像エフェクト用の配列を初期化
       this.bulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
@@ -357,11 +370,23 @@ export class MainScene extends Phaser.Scene {
     })
   }
 
-  update() {
+  update(_time: number, delta: number) {
     if (this.gameOver) return
 
-    // 重力中心を画面外周に沿って移動
-    this.updateGravityCenter()
+    this.gravityField?.update(delta)
+
+    // キーボード移動
+    if (this.cursors?.left.isDown) {
+      this.player?.setVelocityX(-300)
+    } else if (this.cursors?.right.isDown) {
+      this.player?.setVelocityX(300)
+    } else {
+      this.player?.setVelocityX(0)
+    }
+
+    if (this.spaceKey?.isDown && this.player) {
+      this.shootBullet(this.player.x, this.player.y - 20)
+    }
 
     // 敵の弾に重力を適用
     this.applyGravityToEnemyBullets()
@@ -419,50 +444,24 @@ export class MainScene extends Phaser.Scene {
     })
   }
 
-  private updateGravityCenter() {
-    // 重力中心を画面外周に沿って移動（時計回り）
-    this.gravityCenterAngle += 0.02
-
-    // 画面外周の位置を計算（画面の外側、少し離れた位置）
-    const radius = 700 // 画面中心からの距離
-    const centerX = 400
-    const centerY = 300
-
-    this.gravityCenter.x = centerX + Math.cos(this.gravityCenterAngle) * radius
-    this.gravityCenter.y = centerY + Math.sin(this.gravityCenterAngle) * radius
-  }
-
   private applyGravityToEnemyBullets() {
     if (!this.enemyBullets) return
 
     this.enemyBullets.children.entries.forEach(bullet => {
       const b = bullet as Phaser.Physics.Arcade.Sprite
-      if (b.active && b.body) {
-        // 重力中心への方向を計算
-        const dx = this.gravityCenter.x - b.x
-        const dy = this.gravityCenter.y - b.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-
-        if (distance > 0) {
-          // 重力加速度を計算（距離の二乗に反比例）
-          const force = this.gravityStrength / (distance * 0.1)
-          const ax = (dx / distance) * force
-          const ay = (dy / distance) * force
-
-          // 速度に加算
-          b.setVelocity(
-            b.body.velocity.x + ax,
-            b.body.velocity.y + ay
-          )
-        }
-      }
+      this.gravityField?.applyTo(b)
     })
   }
 
   private updateTrails() {
     // プレイヤーの残像を追加
     if (this.player) {
-      this.addTrailPoint(this.playerTrail, this.player.x, this.player.y, 0x00ffff)
+      this.addTrailPoint(
+        this.playerTrail,
+        this.player.x,
+        this.player.y,
+        0x00ffff
+      )
     }
 
     // 弾の残像を追加
@@ -511,7 +510,12 @@ export class MainScene extends Phaser.Scene {
     this.enemyBulletTrails.forEach(trail => this.updateTrailAlpha(trail))
   }
 
-  private addTrailPoint(trail: TrailPoint[], x: number, y: number, _color: number) {
+  private addTrailPoint(
+    trail: TrailPoint[],
+    x: number,
+    y: number,
+    _color: number
+  ) {
     const graphics = this.add.graphics()
     graphics.setDepth(10)
 
@@ -519,7 +523,7 @@ export class MainScene extends Phaser.Scene {
       x,
       y,
       alpha: 1.0,
-      graphics
+      graphics,
     })
 
     // 最大長を超えたら古いものを削除
@@ -658,11 +662,19 @@ export class MainScene extends Phaser.Scene {
         x: pointer.x,
         y: pointer.y,
         duration: duration,
-        ease: 'Linear'
+        ease: 'Linear',
       })
 
       // インジケーターをフェードアウト
       this.time.delayedCall(duration, () => this.moveIndicator?.clear())
     }
+  }
+
+  private handlePointerMove(pointer: Phaser.Input.Pointer) {
+    if (this.gameOver) return
+    if (!pointer.isDown) return
+
+    const targetX = Phaser.Math.Clamp(pointer.x, 15, 785)
+    this.player?.setX(targetX)
   }
 }

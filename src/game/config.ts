@@ -1,7 +1,12 @@
 import Phaser from 'phaser'
+import { DebugScene } from './DebugScene'
 import { MainScene } from './MainScene'
 
-export const gameConfig: Phaser.Types.Core.GameConfig = {
+type Mode = 'game' | 'debug'
+
+export const createGameConfig = (
+  mode: Mode = 'game'
+): Phaser.Types.Core.GameConfig => ({
   type: Phaser.AUTO,
   width: 800,
   height: 600,
@@ -11,8 +16,8 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     default: 'arcade',
     arcade: {
       gravity: { x: 0, y: 0 },
-      debug: false,
+      debug: mode === 'debug',
     },
   },
-  scene: [MainScene],
-}
+  scene: mode === 'debug' ? [DebugScene] : [MainScene],
+})
