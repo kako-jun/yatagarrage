@@ -9,7 +9,10 @@ function App() {
 
   const [mode, setMode] = useState<Mode>('menu')
   const [gameInstance, setGameInstance] = useState<Phaser.Game | null>(null)
-  const [debugGravityEnabled, setDebugGravityEnabled] = useState(true)
+  const [debugGravitySourceCount, setDebugGravitySourceCount] = useState(3)
+  const [gravityStrengths, setGravityStrengths] = useState([
+    1600000, 1200000, 900000,
+  ])
 
   const startGame = () => setMode('game')
   const startDebug = () => setMode('debug')
@@ -25,22 +28,35 @@ function App() {
     gameInstance?.events.emit('debug-clear')
   }
 
-  const toggleDebugGravity = () => {
+  const setGravitySourceCount = (count: number) => {
     if (mode !== 'debug') return
-    const next = !debugGravityEnabled
-    setDebugGravityEnabled(next)
+    setDebugGravitySourceCount(count)
     if (gameInstance) {
-      gameInstance.registry.set('debug-gravity-enabled', next)
-      gameInstance.events.emit('debug-set-gravity', next)
+      gameInstance.events.emit('debug-set-gravity-count', count)
+    }
+  }
+
+  const setGravityStrength = (index: number, strength: number) => {
+    if (mode !== 'debug') return
+    const newStrengths = [...gravityStrengths]
+    newStrengths[index] = strength
+    setGravityStrengths(newStrengths)
+    if (gameInstance) {
+      gameInstance.events.emit('debug-set-gravity-strength', index, strength)
     }
   }
 
   useEffect(() => {
     if (mode === 'debug' && gameInstance) {
-      gameInstance.registry.set('debug-gravity-enabled', debugGravityEnabled)
-      gameInstance.events.emit('debug-set-gravity', debugGravityEnabled)
+      gameInstance.events.emit(
+        'debug-set-gravity-count',
+        debugGravitySourceCount
+      )
+      gravityStrengths.forEach((strength, index) => {
+        gameInstance.events.emit('debug-set-gravity-strength', index, strength)
+      })
     }
-  }, [mode, gameInstance, debugGravityEnabled])
+  }, [mode, gameInstance, debugGravitySourceCount, gravityStrengths])
 
   return (
     <div className="App">
@@ -82,10 +98,52 @@ function App() {
               <div className="debug-toolbar">
                 <div className="debug-actions">
                   <button onClick={clearDebugBullets}>弾をクリア</button>
-                  <button onClick={toggleDebugGravity}>
-                    {debugGravityEnabled ? '重力源OFF' : '重力源ON'}
-                  </button>
                 </div>
+
+                <div className="gravity-controls">
+                  <div className="gravity-count">
+                    <label>重力源の個数:</label>
+                    <div className="gravity-count-buttons">
+                      {[0, 1, 2, 3].map(count => (
+                        <button
+                          key={count}
+                          onClick={() => setGravitySourceCount(count)}
+                          className={
+                            debugGravitySourceCount === count ? 'active' : ''
+                          }
+                        >
+                          {count}個
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {[0, 1, 2].map(
+                    index =>
+                      index < debugGravitySourceCount && (
+                        <div key={index} className="gravity-strength">
+                          <label>
+                            重力源{index + 1}の強さ:{' '}
+                            {(gravityStrengths[index] / 1000000).toFixed(1)}M
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="3000000"
+                            step="100000"
+                            value={gravityStrengths[index]}
+                            onChange={e =>
+                              setGravityStrength(
+                                index,
+                                parseInt(e.target.value)
+                              )
+                            }
+                          />
+                        </div>
+                      )
+                  )}
+                </div>
+
                 <div className="pattern-buttons">
                   {DANMAKU_PATTERNS.map(pattern => (
                     <button

@@ -15,6 +15,8 @@ type GravitySourceState = {
   angle: number
   position: Phaser.Math.Vector2
   marker: Phaser.GameObjects.Arc
+  label?: Phaser.GameObjects.Text
+  originalStrength?: number
 }
 
 const createDefaultConfigs = (): GravitySourceConfig[] => [
@@ -80,10 +82,25 @@ export class GravityField {
       marker.setDepth(75)
       marker.setStrokeStyle(1, 0xffffff, 0.4)
 
+      // 重力源の番号テキストを作成
+      const label = scene.add.text(
+        this.center.x,
+        this.center.y,
+        `${index + 1}`,
+        {
+          fontSize: '14px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+        }
+      )
+      label.setOrigin(0.5, 0.5)
+      label.setDepth(76)
+
       this.sources.push({
         config,
         angle,
         marker,
+        label,
         position: new Phaser.Math.Vector2(this.center.x, this.center.y),
       })
     })
@@ -93,7 +110,46 @@ export class GravityField {
     this.enabled = value
     this.sources.forEach(source => {
       source.marker.setVisible(value)
+      source.label?.setVisible(value)
     })
+  }
+
+  setActiveSourceCount(count: number) {
+    const clampedCount = Math.max(0, Math.min(count, this.sources.length))
+    this.sources.forEach((source, index) => {
+      const isActive = index < clampedCount
+      source.marker.setVisible(isActive && this.enabled)
+      source.label?.setVisible(isActive && this.enabled)
+      // 非アクティブな重力源の強さを0にすることで、弾道に影響しないようにする
+      if (!isActive) {
+        if (source.originalStrength === undefined) {
+          source.originalStrength = source.config.strength
+        }
+        source.config.strength = 0
+      } else {
+        if (source.originalStrength !== undefined) {
+          source.config.strength = source.originalStrength
+        }
+      }
+    })
+  }
+
+  setSourceStrength(index: number, strength: number) {
+    if (index >= 0 && index < this.sources.length) {
+      this.sources[index].config.strength = strength
+      this.sources[index].originalStrength = strength
+    }
+  }
+
+  getSourceCount(): number {
+    return this.sources.length
+  }
+
+  getSourceStrength(index: number): number {
+    if (index >= 0 && index < this.sources.length) {
+      return this.sources[index].config.strength
+    }
+    return 0
   }
 
   update(delta: number) {
@@ -107,9 +163,19 @@ export class GravityField {
       source.position.set(x, y)
       source.marker.setPosition(x, y)
 
-      const pulse =
-        0.9 + Math.sin(this.scene.time.now * 0.005 + source.angle) * 0.15
-      source.marker.setScale(pulse)
+      // ラベルの位置も更新
+      source.label?.setPosition(x, y)
+
+      // 重力の強さに応じてサイズを変更（0-3000000 → 0.5-2.5倍）
+      const strengthRatio = Math.abs(source.config.strength) / 1600000
+      const baseScale = 0.5 + Math.min(strengthRatio, 2.0)
+      const pulse = Math.sin(this.scene.time.now * 0.005 + source.angle) * 0.15
+      source.marker.setScale(baseScale + pulse)
+
+      // 強さに応じて透明度も調整
+      const alpha = source.config.strength === 0 ? 0.2 : 0.65
+      source.marker.setAlpha(alpha)
+      source.label?.setAlpha(alpha)
     })
   }
 
@@ -137,6 +203,7 @@ export class GravityField {
   destroy() {
     this.sources.forEach(source => {
       source.marker.destroy()
+      source.label?.destroy()
     })
   }
 }

@@ -2,7 +2,12 @@ import Phaser from 'phaser'
 import { GravityField } from './gravityField'
 import { DANMAKU_PATTERNS, SpawnBulletFn } from './patterns'
 
-type DebugEvents = 'debug-fire-pattern' | 'debug-clear' | 'debug-set-gravity'
+type DebugEvents =
+  | 'debug-fire-pattern'
+  | 'debug-clear'
+  | 'debug-set-gravity'
+  | 'debug-set-gravity-count'
+  | 'debug-set-gravity-strength'
 
 export class DebugScene extends Phaser.Scene {
   private bullets?: Phaser.Physics.Arcade.Group
@@ -54,6 +59,16 @@ export class DebugScene extends Phaser.Scene {
       this.setGravityEnabled,
       this
     )
+    this.game.events.on(
+      'debug-set-gravity-count' as DebugEvents,
+      this.setGravitySourceCount,
+      this
+    )
+    this.game.events.on(
+      'debug-set-gravity-strength' as DebugEvents,
+      this.setGravityStrength,
+      this
+    )
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(
@@ -69,6 +84,16 @@ export class DebugScene extends Phaser.Scene {
       this.game.events.off(
         'debug-set-gravity' as DebugEvents,
         this.setGravityEnabled,
+        this
+      )
+      this.game.events.off(
+        'debug-set-gravity-count' as DebugEvents,
+        this.setGravitySourceCount,
+        this
+      )
+      this.game.events.off(
+        'debug-set-gravity-strength' as DebugEvents,
+        this.setGravityStrength,
         this
       )
       this.clearTimers()
@@ -205,6 +230,16 @@ export class DebugScene extends Phaser.Scene {
   private setGravityEnabled(enabled: boolean) {
     this.gravityEnabled = enabled
     this.gravityField?.setEnabled(enabled)
+    this.updateStatusText()
+  }
+
+  private setGravitySourceCount(count: number) {
+    this.gravityField?.setActiveSourceCount(count)
+    this.updateStatusText()
+  }
+
+  private setGravityStrength(index: number, strength: number) {
+    this.gravityField?.setSourceStrength(index, strength)
     this.updateStatusText()
   }
 
