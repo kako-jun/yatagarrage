@@ -218,6 +218,13 @@ export class MainScene extends Phaser.Scene {
     enemy.body.setSize(30, 30)
     enemy.setVelocityY(Phaser.Math.Between(100, 200))
 
+    // 弾幕パターンをランダムに選択（1-35）
+    const patternId = Phaser.Math.Between(1, 35)
+    enemy.setData('patternId', patternId)
+
+    // 螺旋弾幕用の角度オフセット
+    enemy.setData('spiralAngle', 0)
+
     // 敵が定期的に弾を発射するタイマーを設定
     const shootTimer = this.time.addEvent({
       delay: Phaser.Math.Between(800, 1500),
@@ -236,30 +243,872 @@ export class MainScene extends Phaser.Scene {
   private enemyShoot(enemy: Phaser.Physics.Arcade.Sprite) {
     if (!this.enemyBullets || !this.player) return
 
-    // 敵から複数の弾を発射（弾幕）
-    const bulletCount = 5
-    for (let i = 0; i < bulletCount; i++) {
-      const bullet = this.enemyBullets.get(enemy.x, enemy.y)
+    const patternId = enemy.getData('patternId') || 1
+    const speed = 200
+
+    switch (patternId) {
+      case 1: // 扇状弾幕（5-way）
+        this.shootFanPattern(enemy, 5, 0.3, speed)
+        break
+
+      case 2: // 円形弾幕（8方向）
+        this.shootCirclePattern(enemy, 8, speed)
+        break
+
+      case 3: // 円形弾幕（16方向）
+        this.shootCirclePattern(enemy, 16, speed)
+        break
+
+      case 4: // 円形弾幕（24方向）
+        this.shootCirclePattern(enemy, 24, speed)
+        break
+
+      case 5: // 円形弾幕（32方向）
+        this.shootCirclePattern(enemy, 32, speed)
+        break
+
+      case 6: // シングルスパイラル
+        this.shootSpiralPattern(enemy, 1, speed)
+        break
+
+      case 7: // ダブルスパイラル
+        this.shootSpiralPattern(enemy, 2, speed)
+        break
+
+      case 8: // トリプルスパイラル
+        this.shootSpiralPattern(enemy, 3, speed)
+        break
+
+      case 9: // 波状弾幕
+        this.shootWavePattern(enemy, speed)
+        break
+
+      case 10: // ランダム弾幕
+        this.shootRandomPattern(enemy, 10, speed)
+        break
+
+      case 11: // 収束弾幕
+        this.shootConvergingPattern(enemy, 8, speed)
+        break
+
+      case 12: // 拡散弾幕
+        this.shootDivergingPattern(enemy, 8, speed)
+        break
+
+      case 13: // 十字型
+        this.shootCrossPattern(enemy, speed)
+        break
+
+      case 14: // X字型
+        this.shootXPattern(enemy, speed)
+        break
+
+      case 15: // 米字型（8方向）
+        this.shootAsteriskPattern(enemy, speed)
+        break
+
+      case 16: // ホーミング弾
+        this.shootHomingPattern(enemy, 3, speed * 0.8)
+        break
+
+      case 17: // 加速弾
+        this.shootAcceleratingPattern(enemy, 5, speed * 0.5)
+        break
+
+      case 18: // 減速弾
+        this.shootDeceleratingPattern(enemy, 5, speed * 1.5)
+        break
+
+      case 19: // 二段階弾幕
+        this.shootTwoStagePattern(enemy, speed)
+        break
+
+      case 20: // 時間差弾幕
+        this.shootDelayedPattern(enemy, 5, speed)
+        break
+
+      case 21: // 密集弾幕
+        this.shootDensePattern(enemy, 20, speed)
+        break
+
+      case 22: // まばら弾幕
+        this.shootSparsePattern(enemy, 4, speed)
+        break
+
+      case 23: // 扇形集中
+        this.shootFanPattern(enemy, 7, 0.15, speed)
+        break
+
+      case 24: // 扇形分散
+        this.shootFanPattern(enemy, 7, 0.5, speed)
+        break
+
+      case 25: // ダブル円形
+        this.shootDoubleCirclePattern(enemy, speed)
+        break
+
+      case 26: // トリプル円形
+        this.shootTripleCirclePattern(enemy, speed)
+        break
+
+      case 27: // バースト弾
+        this.shootBurstPattern(enemy, speed)
+        break
+
+      case 28: // ストリーム弾
+        this.shootStreamPattern(enemy, speed)
+        break
+
+      case 29: // 直線自機狙い
+        this.shootStraightAimPattern(enemy, 1, speed)
+        break
+
+      case 30: // 予測弾
+        this.shootPredictivePattern(enemy, 3, speed)
+        break
+
+      case 31: // 爆発型
+        this.shootExplosionPattern(enemy, 16, speed * 1.2)
+        break
+
+      case 32: // 回転弾幕（時計回り）
+        this.shootRotatingPattern(enemy, 6, 0.1, speed)
+        break
+
+      case 33: // 回転弾幕（反時計回り）
+        this.shootRotatingPattern(enemy, 6, -0.1, speed)
+        break
+
+      case 34: // 花弁状
+        this.shootFlowerPattern(enemy, 5, speed)
+        break
+
+      case 35: // ランダム方向ホーミング
+        this.shootRandomHomingPattern(enemy, 5, speed * 0.7)
+        break
+
+      default:
+        this.shootFanPattern(enemy, 5, 0.3, speed)
+    }
+  }
+
+  // パターン1: 扇状弾幕
+  private shootFanPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    spread: number,
+    speed: number
+  ) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
       if (bullet) {
         bullet.setActive(true)
         bullet.setVisible(true)
         bullet.setDisplaySize(8, 8)
         bullet.body!.setSize(8, 8)
 
-        // 扇状に弾を発射
-        const baseAngle = Phaser.Math.Angle.Between(
-          enemy.x,
-          enemy.y,
-          this.player.x,
-          this.player.y
-        )
-        const spread = 0.3
-        const angle = baseAngle + (i - 2) * spread
-
-        const speed = 200
+        const angle = baseAngle + (i - (count - 1) / 2) * spread
         bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
 
-        // 残像エフェクト用の配列を初期化
+  // パターン2-5: 円形弾幕
+  private shootCirclePattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = (Math.PI * 2 * i) / count
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン6-8: 螺旋弾幕
+  private shootSpiralPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    arms: number,
+    speed: number
+  ) {
+    let spiralAngle = enemy.getData('spiralAngle') || 0
+    spiralAngle += 0.2
+
+    for (let i = 0; i < arms; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = spiralAngle + (Math.PI * 2 * i) / arms
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+
+    enemy.setData('spiralAngle', spiralAngle)
+  }
+
+  // パターン9: 波状弾幕
+  private shootWavePattern(enemy: Phaser.Physics.Arcade.Sprite, speed: number) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < 5; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const waveOffset = Math.sin(i * 0.5) * 0.5
+        const angle = baseAngle + waveOffset
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+
+        // 弾に波状の動きを追加
+        bullet.setData('wave', true)
+        bullet.setData('wavePhase', i * 0.5)
+      }
+    }
+  }
+
+  // パターン10: ランダム弾幕
+  private shootRandomPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = Math.random() * Math.PI * 2
+        const randomSpeed = speed * (0.7 + Math.random() * 0.6)
+        bullet.setVelocity(
+          Math.cos(angle) * randomSpeed,
+          Math.sin(angle) * randomSpeed
+        )
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン11: 収束弾幕
+  private shootConvergingPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = (Math.PI * 2 * i) / count
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        bullet.setData('converging', true)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン12: 拡散弾幕
+  private shootDivergingPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = (Math.PI * 2 * i) / count
+        bullet.setVelocity(
+          Math.cos(angle) * speed * 0.5,
+          Math.sin(angle) * speed * 0.5
+        )
+        bullet.setData('diverging', true)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン13: 十字型
+  private shootCrossPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    speed: number
+  ) {
+    const angles = [0, Math.PI / 2, Math.PI, (Math.PI * 3) / 2]
+    angles.forEach(angle => {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    })
+  }
+
+  // パターン14: X字型
+  private shootXPattern(enemy: Phaser.Physics.Arcade.Sprite, speed: number) {
+    const angles = [
+      Math.PI / 4,
+      (Math.PI * 3) / 4,
+      (Math.PI * 5) / 4,
+      (Math.PI * 7) / 4,
+    ]
+    angles.forEach(angle => {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    })
+  }
+
+  // パターン15: 米字型
+  private shootAsteriskPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    speed: number
+  ) {
+    for (let i = 0; i < 8; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = (Math.PI * 2 * i) / 8
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン16: ホーミング弾
+  private shootHomingPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = (Math.PI * 2 * i) / count
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        bullet.setData('homing', true)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン17: 加速弾
+  private shootAcceleratingPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = baseAngle + (i - 2) * 0.2
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        bullet.setData('accelerating', true)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン18: 減速弾
+  private shootDeceleratingPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = baseAngle + (i - 2) * 0.2
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        bullet.setData('decelerating', true)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン19: 二段階弾幕
+  private shootTwoStagePattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    speed: number
+  ) {
+    // 第一段階
+    for (let i = 0; i < 4; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = (Math.PI * 2 * i) / 4
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        bullet.setData('twoStage', true)
+        bullet.setData('stageTime', this.time.now)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン20: 時間差弾幕
+  private shootDelayedPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < count; i++) {
+      this.time.delayedCall(i * 100, () => {
+        if (enemy.active && !this.gameOver) {
+          const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+          if (bullet) {
+            bullet.setActive(true)
+            bullet.setVisible(true)
+            bullet.setDisplaySize(8, 8)
+            bullet.body!.setSize(8, 8)
+            bullet.setVelocity(
+              Math.cos(baseAngle) * speed,
+              Math.sin(baseAngle) * speed
+            )
+            this.enemyBulletTrails.set(
+              bullet as Phaser.Physics.Arcade.Sprite,
+              []
+            )
+          }
+        }
+      })
+    }
+  }
+
+  // パターン21: 密集弾幕
+  private shootDensePattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = baseAngle + (i - count / 2) * 0.05
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン22: まばら弾幕
+  private shootSparsePattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = baseAngle + (i - count / 2) * 0.8
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン25: ダブル円形
+  private shootDoubleCirclePattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    speed: number
+  ) {
+    const counts = [8, 8]
+    const speeds = [speed, speed * 0.6]
+
+    counts.forEach((count, index) => {
+      for (let i = 0; i < count; i++) {
+        const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+        if (bullet) {
+          bullet.setActive(true)
+          bullet.setVisible(true)
+          bullet.setDisplaySize(8, 8)
+          bullet.body!.setSize(8, 8)
+
+          const angle = (Math.PI * 2 * i) / count
+          bullet.setVelocity(
+            Math.cos(angle) * speeds[index],
+            Math.sin(angle) * speeds[index]
+          )
+          this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+        }
+      }
+    })
+  }
+
+  // パターン26: トリプル円形
+  private shootTripleCirclePattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    speed: number
+  ) {
+    const counts = [6, 6, 6]
+    const speeds = [speed, speed * 0.7, speed * 0.4]
+
+    counts.forEach((count, index) => {
+      for (let i = 0; i < count; i++) {
+        const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+        if (bullet) {
+          bullet.setActive(true)
+          bullet.setVisible(true)
+          bullet.setDisplaySize(8, 8)
+          bullet.body!.setSize(8, 8)
+
+          const angle = (Math.PI * 2 * i) / count
+          bullet.setVelocity(
+            Math.cos(angle) * speeds[index],
+            Math.sin(angle) * speeds[index]
+          )
+          this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+        }
+      }
+    })
+  }
+
+  // パターン27: バースト弾
+  private shootBurstPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    speed: number
+  ) {
+    for (let burst = 0; burst < 3; burst++) {
+      this.time.delayedCall(burst * 150, () => {
+        if (enemy.active && !this.gameOver) {
+          for (let i = 0; i < 8; i++) {
+            const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+            if (bullet) {
+              bullet.setActive(true)
+              bullet.setVisible(true)
+              bullet.setDisplaySize(8, 8)
+              bullet.body!.setSize(8, 8)
+
+              const angle = (Math.PI * 2 * i) / 8 + burst * 0.2
+              bullet.setVelocity(
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed
+              )
+              this.enemyBulletTrails.set(
+                bullet as Phaser.Physics.Arcade.Sprite,
+                []
+              )
+            }
+          }
+        }
+      })
+    }
+  }
+
+  // パターン28: ストリーム弾
+  private shootStreamPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    speed: number
+  ) {
+    const baseAngle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < 10; i++) {
+      this.time.delayedCall(i * 50, () => {
+        if (enemy.active && !this.gameOver) {
+          const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+          if (bullet) {
+            bullet.setActive(true)
+            bullet.setVisible(true)
+            bullet.setDisplaySize(8, 8)
+            bullet.body!.setSize(8, 8)
+
+            const angle = baseAngle + (Math.random() - 0.5) * 0.1
+            bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+            this.enemyBulletTrails.set(
+              bullet as Phaser.Physics.Arcade.Sprite,
+              []
+            )
+          }
+        }
+      })
+    }
+  }
+
+  // パターン29: 直線自機狙い
+  private shootStraightAimPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    const angle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      this.player!.x,
+      this.player!.y
+    )
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン30: 予測弾
+  private shootPredictivePattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    // プレイヤーの速度を考慮した予測位置を計算
+    const predictTime = 0.5
+    const predictX =
+      this.player!.x + this.player!.body!.velocity.x * predictTime
+    const predictY =
+      this.player!.y + this.player!.body!.velocity.y * predictTime
+
+    const angle = Phaser.Math.Angle.Between(
+      enemy.x,
+      enemy.y,
+      predictX,
+      predictY
+    )
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const spreadAngle = angle + (i - 1) * 0.15
+        bullet.setVelocity(
+          Math.cos(spreadAngle) * speed,
+          Math.sin(spreadAngle) * speed
+        )
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン31: 爆発型
+  private shootExplosionPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = (Math.PI * 2 * i) / count
+        const randomSpeed = speed * (0.8 + Math.random() * 0.4)
+        bullet.setVelocity(
+          Math.cos(angle) * randomSpeed,
+          Math.sin(angle) * randomSpeed
+        )
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン32-33: 回転弾幕
+  private shootRotatingPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    rotationSpeed: number,
+    speed: number
+  ) {
+    let rotationAngle = enemy.getData('rotationAngle') || 0
+    rotationAngle += rotationSpeed
+
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = rotationAngle + (Math.PI * 2 * i) / count
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+
+    enemy.setData('rotationAngle', rotationAngle)
+  }
+
+  // パターン34: 花弁状
+  private shootFlowerPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    petals: number,
+    speed: number
+  ) {
+    for (let i = 0; i < petals * 3; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const petalAngle = (Math.PI * 2 * Math.floor(i / 3)) / petals
+        const offset = (i % 3) * 0.2
+        const angle = petalAngle + offset
+        const petalSpeed = speed * (1 - (i % 3) * 0.2)
+
+        bullet.setVelocity(
+          Math.cos(angle) * petalSpeed,
+          Math.sin(angle) * petalSpeed
+        )
+        this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
+      }
+    }
+  }
+
+  // パターン35: ランダム方向ホーミング
+  private shootRandomHomingPattern(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    count: number,
+    speed: number
+  ) {
+    for (let i = 0; i < count; i++) {
+      const bullet = this.enemyBullets!.get(enemy.x, enemy.y)
+      if (bullet) {
+        bullet.setActive(true)
+        bullet.setVisible(true)
+        bullet.setDisplaySize(8, 8)
+        bullet.body!.setSize(8, 8)
+
+        const angle = Math.random() * Math.PI * 2
+        bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed)
+        bullet.setData('homing', true)
+        bullet.setData('homingDelay', 500 + Math.random() * 500)
+        bullet.setData('homingStartTime', this.time.now)
         this.enemyBulletTrails.set(bullet as Phaser.Physics.Arcade.Sprite, [])
       }
     }
@@ -445,11 +1294,143 @@ export class MainScene extends Phaser.Scene {
   }
 
   private applyGravityToEnemyBullets() {
-    if (!this.enemyBullets) return
+    if (!this.enemyBullets || !this.player) return
 
     this.enemyBullets.children.entries.forEach(bullet => {
       const b = bullet as Phaser.Physics.Arcade.Sprite
+      if (!b.active) return
+
+      // 重力場を適用
       this.gravityField?.applyTo(b)
+
+      // ホーミング弾の処理
+      if (b.getData('homing')) {
+        const homingDelay = b.getData('homingDelay') || 0
+        const homingStartTime = b.getData('homingStartTime') || 0
+        if (this.time.now - homingStartTime > homingDelay) {
+          const angleToPlayer = Phaser.Math.Angle.Between(
+            b.x,
+            b.y,
+            this.player.x,
+            this.player.y
+          )
+          const currentAngle = Math.atan2(
+            b.body!.velocity.y,
+            b.body!.velocity.x
+          )
+          const speed = Math.sqrt(
+            b.body!.velocity.x ** 2 + b.body!.velocity.y ** 2
+          )
+
+          // 徐々に角度を変える
+          const turnRate = 0.05
+          const newAngle = Phaser.Math.Angle.RotateTo(
+            currentAngle,
+            angleToPlayer,
+            turnRate
+          )
+          b.setVelocity(Math.cos(newAngle) * speed, Math.sin(newAngle) * speed)
+        }
+      }
+
+      // 加速弾の処理
+      if (b.getData('accelerating')) {
+        const accel = 1.02
+        b.setVelocity(b.body!.velocity.x * accel, b.body!.velocity.y * accel)
+      }
+
+      // 減速弾の処理
+      if (b.getData('decelerating')) {
+        const decel = 0.98
+        b.setVelocity(b.body!.velocity.x * decel, b.body!.velocity.y * decel)
+      }
+
+      // 波状弾の処理
+      if (b.getData('wave')) {
+        const wavePhase = b.getData('wavePhase') || 0
+        const newPhase = wavePhase + 0.1
+        b.setData('wavePhase', newPhase)
+
+        const currentAngle = Math.atan2(b.body!.velocity.y, b.body!.velocity.x)
+        const waveOffset = Math.sin(newPhase) * 0.05
+        const newAngle = currentAngle + waveOffset
+
+        const speed = Math.sqrt(
+          b.body!.velocity.x ** 2 + b.body!.velocity.y ** 2
+        )
+        b.setVelocity(Math.cos(newAngle) * speed, Math.sin(newAngle) * speed)
+      }
+
+      // 収束弾の処理
+      if (b.getData('converging')) {
+        const centerX = 400
+        const centerY = 300
+        const angleToCenter = Phaser.Math.Angle.Between(
+          b.x,
+          b.y,
+          centerX,
+          centerY
+        )
+        const currentAngle = Math.atan2(b.body!.velocity.y, b.body!.velocity.x)
+        const speed = Math.sqrt(
+          b.body!.velocity.x ** 2 + b.body!.velocity.y ** 2
+        )
+
+        const turnRate = 0.02
+        const newAngle = Phaser.Math.Angle.RotateTo(
+          currentAngle,
+          angleToCenter,
+          turnRate
+        )
+        b.setVelocity(Math.cos(newAngle) * speed, Math.sin(newAngle) * speed)
+      }
+
+      // 拡散弾の処理
+      if (b.getData('diverging')) {
+        const centerX = 400
+        const centerY = 300
+        const angleFromCenter = Phaser.Math.Angle.Between(
+          centerX,
+          centerY,
+          b.x,
+          b.y
+        )
+        const currentAngle = Math.atan2(b.body!.velocity.y, b.body!.velocity.x)
+        const speed = Math.sqrt(
+          b.body!.velocity.x ** 2 + b.body!.velocity.y ** 2
+        )
+
+        const turnRate = 0.02
+        const newAngle = Phaser.Math.Angle.RotateTo(
+          currentAngle,
+          angleFromCenter,
+          turnRate
+        )
+        b.setVelocity(
+          Math.cos(newAngle) * speed * 1.01,
+          Math.sin(newAngle) * speed * 1.01
+        )
+      }
+
+      // 二段階弾の処理
+      if (b.getData('twoStage')) {
+        const stageTime = b.getData('stageTime') || 0
+        if (this.time.now - stageTime > 500 && !b.getData('secondStage')) {
+          // 第二段階: プレイヤーに向かって方向転換
+          const angleToPlayer = Phaser.Math.Angle.Between(
+            b.x,
+            b.y,
+            this.player.x,
+            this.player.y
+          )
+          const speed = 250
+          b.setVelocity(
+            Math.cos(angleToPlayer) * speed,
+            Math.sin(angleToPlayer) * speed
+          )
+          b.setData('secondStage', true)
+        }
+      }
     })
   }
 
