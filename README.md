@@ -83,4 +83,4 @@ Copyright (c) 2025 kako-jun
 
 ## クレジット
 
-Phaser 3ゲームエンジンを使用しています。
+PixiJS 8 (WebGL レンダラ) を使用しています。

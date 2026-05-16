@@ -1,0 +1,16 @@
+export const COLORS = {
+  background: 0x080010,
+  uiBar: 0x0033cc,
+  uiBarAlpha: 0.8,
+  uiText: 0xffffff,
+  player: 0x00ffff,
+  playerBullet: 0xffff66,
+  enemy: 0xff3344,
+  enemyBullet: 0xff66ff,
+  trail: 0xffffff,
+  moveIndicator: 0x66ff66,
+  shootIndicator: 0xff66ff,
+  gravityAlpha: 0x66d9ff,
+  gravityBeta: 0xff8ad9,
+  gravityGamma: 0x86ffad,
+} as const
