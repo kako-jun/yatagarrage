@@ -1,5 +1,6 @@
 import { Application } from 'pixi.js'
 import { COLORS } from './constants/colors'
+import { DebugScene } from './scenes/DebugScene'
 import { GameScene } from './scenes/GameScene'
 import { GameOverScene } from './scenes/GameOverScene'
 import { SceneManager } from './scenes/SceneManager'
@@ -27,16 +28,25 @@ async function bootstrap(): Promise<void> {
   app.stage.addChild(sceneManager.world)
 
   const gameScene = new GameScene()
+  const debugScene = new DebugScene()
 
   const gameOverScene = new GameOverScene(() => {
     gameScene.initWithState(createInitialGameState())
     sceneManager.show('game')
   })
 
-  const titleScene = new TitleScene(() => {
-    gameScene.initWithState(createInitialGameState())
-    sceneManager.show('game')
-  })
+  const titleScene = new TitleScene(
+    () => {
+      gameScene.initWithState(createInitialGameState())
+      sceneManager.show('game')
+    },
+    () => {
+      debugScene.reset()
+      sceneManager.show('debug')
+    }
+  )
+
+  debugScene.onBack = () => sceneManager.show('title')
 
   gameScene.onGameOver = score => {
     gameOverScene.setScore(score)
@@ -46,11 +56,14 @@ async function bootstrap(): Promise<void> {
   sceneManager.registerScene('title', titleScene)
   sceneManager.registerScene('game', gameScene)
   sceneManager.registerScene('gameover', gameOverScene)
+  sceneManager.registerScene('debug', debugScene)
   sceneManager.show('title')
 
   app.ticker.add(ticker => {
     if (sceneManager.current === 'game') {
       gameScene.update(ticker)
+    } else if (sceneManager.current === 'debug') {
+      debugScene.update(ticker)
     }
   })
 }

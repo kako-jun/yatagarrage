@@ -1,15 +1,22 @@
-import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js'
+import {
+  Container,
+  FederatedPointerEvent,
+  Graphics,
+  Rectangle,
+  Text,
+} from 'pixi.js'
 import { COLORS } from '../constants/colors'
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../types/GameState'
 
 export class TitleScene extends Container {
-  constructor(onStart: () => void) {
+  constructor(onStart: () => void, onDebug?: () => void) {
     super()
     this.eventMode = 'static'
-    this.hitArea = { contains: () => true }
 
     const bg = new Graphics()
     bg.rect(0, 0, VIEW_WIDTH, VIEW_HEIGHT).fill({ color: COLORS.background })
+    bg.eventMode = 'static'
+    bg.on('pointerdown', () => onStart())
     this.addChild(bg)
 
     const title = new Text({
@@ -55,7 +62,7 @@ export class TitleScene extends Container {
     this.addChild(instructions)
 
     const start = new Text({
-      text: 'クリック / タップで開始',
+      text: 'クリック / Enter で開始',
       style: {
         fontFamily: 'sans-serif',
         fontSize: 24,
@@ -67,6 +74,32 @@ export class TitleScene extends Container {
     start.y = 460
     this.addChild(start)
 
+    if (onDebug) {
+      const debugButton = new Container()
+      debugButton.x = VIEW_WIDTH - 130
+      debugButton.y = VIEW_HEIGHT - 50
+      debugButton.eventMode = 'static'
+      debugButton.cursor = 'pointer'
+      debugButton.hitArea = new Rectangle(0, 0, 110, 32)
+      const debugBg = new Graphics()
+      debugBg.rect(0, 0, 110, 32).fill({ color: 0x223344 })
+      debugBg.rect(0, 0, 110, 32).stroke({ width: 1, color: 0x4488cc })
+      const debugLabel = new Text({
+        text: 'Debug Mode',
+        style: { fontFamily: 'sans-serif', fontSize: 14, fill: 0xffffff },
+      })
+      debugLabel.anchor.set(0.5)
+      debugLabel.x = 55
+      debugLabel.y = 16
+      debugButton.addChild(debugBg)
+      debugButton.addChild(debugLabel)
+      debugButton.on('pointerdown', (event: FederatedPointerEvent) => {
+        event.stopPropagation()
+        onDebug()
+      })
+      this.addChild(debugButton)
+    }
+
     let blinkPhase = 0
     const tick = () => {
       blinkPhase += 0.05
@@ -74,10 +107,6 @@ export class TitleScene extends Container {
       if (this.visible) requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
-
-    this.on('pointerdown', (_event: FederatedPointerEvent) => {
-      onStart()
-    })
 
     const onKey = (event: KeyboardEvent) => {
       if (!this.visible) return
