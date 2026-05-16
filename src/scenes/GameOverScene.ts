@@ -51,15 +51,13 @@ export class GameOverScene extends Container {
 
     this.on('pointerdown', (_event: FederatedPointerEvent) => onRestart())
 
-    const onKey = (event: KeyboardEvent) => {
+    window.addEventListener('keydown', event => {
       if (!this.visible) return
       if (event.code === 'Space' || event.code === 'Enter') {
         event.preventDefault()
         onRestart()
       }
-    }
-    window.addEventListener('keydown', onKey)
-    this.on('destroyed', () => window.removeEventListener('keydown', onKey))
+    })
   }
 
   setScore(score: number): void {

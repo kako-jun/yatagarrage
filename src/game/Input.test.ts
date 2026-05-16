@@ -1,48 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, it } from 'vitest'
 import { Input } from './Input'
 
-// jsdom-like keyboard event simulation
-class FakeKeyboardEvent {
-  preventDefault = vi.fn()
-  constructor(public code: string) {}
+const fire = (type: 'keydown' | 'keyup', code: string) => {
+  window.dispatchEvent(new KeyboardEvent(type, { code }))
 }
 
-type Listener = (e: unknown) => void
-
 describe('Input keyboard', () => {
-  const listeners: Record<string, Listener[]> = {}
-  const originalAdd = globalThis.window?.addEventListener
-  const originalRemove = globalThis.window?.removeEventListener
-
-  beforeEach(() => {
-    listeners.keydown = []
-    listeners.keyup = []
-    // mock window event listeners
-    ;(globalThis as unknown as { window: Window }).window = {
-      addEventListener: (type: string, cb: Listener) => {
-        listeners[type] = listeners[type] || []
-        listeners[type].push(cb)
-      },
-      removeEventListener: (type: string, cb: Listener) => {
-        listeners[type] = (listeners[type] || []).filter(c => c !== cb)
-      },
-    } as unknown as Window
-  })
+  let activeInput: Input | null = null
 
   afterEach(() => {
-    if (originalAdd && originalRemove) {
-      window.addEventListener = originalAdd
-      window.removeEventListener = originalRemove
-    }
+    activeInput?.detachKeyboard()
+    activeInput = null
   })
-
-  const fire = (type: string, code: string) => {
-    const event = new FakeKeyboardEvent(code)
-    for (const cb of listeners[type] ?? []) cb(event)
-  }
 
   it('starts with all keys released', () => {
     const input = new Input()
+    activeInput = input
     expect(input.state).toEqual({
       left: false,
       right: false,
@@ -54,6 +28,7 @@ describe('Input keyboard', () => {
 
   it('updates state on arrow key down/up', () => {
     const input = new Input()
+    activeInput = input
     input.attachKeyboard()
 
     fire('keydown', 'ArrowLeft')
@@ -72,6 +47,7 @@ describe('Input keyboard', () => {
 
   it('sets shoot on Space and clears on key up', () => {
     const input = new Input()
+    activeInput = input
     input.attachKeyboard()
     fire('keydown', 'Space')
     expect(input.state.shoot).toBe(true)
@@ -81,6 +57,7 @@ describe('Input keyboard', () => {
 
   it('ignores unrelated keys', () => {
     const input = new Input()
+    activeInput = input
     input.attachKeyboard()
     fire('keydown', 'KeyA')
     expect(input.state).toEqual({
@@ -92,8 +69,9 @@ describe('Input keyboard', () => {
     })
   })
 
-  it('detachKeyboard clears all state', () => {
+  it('detachKeyboard stops handling events and clears state', () => {
     const input = new Input()
+    activeInput = input
     input.attachKeyboard()
     fire('keydown', 'ArrowLeft')
     fire('keydown', 'Space')
@@ -105,5 +83,8 @@ describe('Input keyboard', () => {
       down: false,
       shoot: false,
     })
+    // After detach, new events do not flip state back on
+    fire('keydown', 'ArrowLeft')
+    expect(input.state.left).toBe(false)
   })
 })

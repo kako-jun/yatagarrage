@@ -96,8 +96,6 @@ export class DebugScene extends Container {
     this.updateBullets(dtMs)
     this.redrawBullets()
     this.drawOriginMarker()
-    this.refreshToolbar()
-    this.updateStatusText()
   }
 
   private buildToolbar(): void {
@@ -289,6 +287,8 @@ export class DebugScene extends Container {
   private toggleGravity(): void {
     this.gravityEnabled = !this.gravityEnabled
     this.gravity.setEnabled(this.gravityEnabled)
+    this.refreshToolbar()
+    this.updateStatusText()
   }
 
   private spawnBullet(input: SpawnBulletInput): Bullet | null {

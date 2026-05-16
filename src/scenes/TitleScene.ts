@@ -108,14 +108,12 @@ export class TitleScene extends Container {
     }
     requestAnimationFrame(tick)
 
-    const onKey = (event: KeyboardEvent) => {
+    window.addEventListener('keydown', event => {
       if (!this.visible) return
       if (event.code === 'Space' || event.code === 'Enter') {
         event.preventDefault()
         onStart()
       }
-    }
-    window.addEventListener('keydown', onKey)
-    this.on('destroyed', () => window.removeEventListener('keydown', onKey))
+    })
   }
 }
