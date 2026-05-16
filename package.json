@@ -12,8 +12,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{ts,css}\" README.md CLAUDE.md",
-    "format:check": "prettier --check \"src/**/*.{ts,css}\" README.md CLAUDE.md",
+    "format": "prettier --write \"src/**/*.ts\" README.md CLAUDE.md \"docs/**/*.md\"",
+    "format:check": "prettier --check \"src/**/*.ts\" README.md CLAUDE.md \"docs/**/*.md\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

@@ -16,6 +16,8 @@ export type SpawnBulletInput = {
 export type PatternContext = {
   enemy: { x: number; y: number }
   player: { x: number; y: number }
+  /** プレイヤーの現在速度 (px/s)。予測弾などに使う。デフォルト 0。 */
+  playerVelocity?: { vx: number; vy: number }
   now: number
   spawn: (input: SpawnBulletInput) => Bullet | null
   scheduleDelay: (delayMs: number, fn: () => void) => void

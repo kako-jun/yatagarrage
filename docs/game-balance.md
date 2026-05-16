@@ -9,7 +9,13 @@
 | `PLAYER_SPEED` | 300 px/s | キーボード移動速度 (ノルマライズ済み斜め含む) |
 | `PLAYER_FIRE_RATE_MS` | 200 ms | 弾の連射間隔 |
 | `PLAYER_BULLET_SPEED` | 500 px/s | プレイヤー弾の速度 |
+| `PLAYER_BULLET_RADIUS` | 5 px | プレイヤー弾の円判定半径 + 描画半径 |
 | `player.radius` | 12 px | 円判定半径 |
+
+### 当たり判定について
+
+弾幕シューティングの慣例 (player visible 12px / hitbox 2-3px) と違い、当たり判定をプレイヤー描画と同じ 12 px にしている。意図的なカジュアル化で、被弾しやすい代わりに「掠り感」より「ぶつけない範囲」の見極めを楽しんでもらう設計。
+キツくしたい場合は `src/types/GameState.ts` の `createInitialGameState` で `player.radius` を 2-3 に絞ると本格弾幕シュー寄りに。
 
 ## 敵
 
@@ -77,3 +83,9 @@ elapsedMs |  事象
 - `TrailLayer.maxLength = 10` (各エンティティの履歴上限)
 - `TrailLayer.decay = 0.1` (毎フレーム alpha 減衰)
 - 描画 alpha = `point.alpha * 0.5`
+
+## 時間管理
+
+- `state.elapsedMs += ticker.deltaMS` を毎フレーム加算する単調増加カウンタ
+- 16 ms/フレームで 60fps なら 1 時間で約 360 万、24 時間で約 8600 万。Number (double 64bit) の整数精度限界 2^53 までは余裕で持つので実用上の精度問題なし
+- ただしリプレイ等で別マシンに再生する将来想定がある場合は、`Δ(fireAt - elapsedMs)` ベースの差分計算へ移行する余地あり

@@ -49,15 +49,23 @@ const defaultConfigs = (): GravitySourceConfig[] => [
   },
 ]
 
+export type GravityFieldOptions = {
+  center?: { x: number; y: number }
+  configs?: GravitySourceConfig[]
+}
+
 export class GravityField {
   readonly container = new Container()
   private readonly sources: GravitySourceState[] = []
   private enabled = true
   private elapsed = 0
-  private readonly centerX = VIEW_WIDTH / 2
-  private readonly centerY = VIEW_HEIGHT / 2
+  private readonly centerX: number
+  private readonly centerY: number
 
-  constructor(configs: GravitySourceConfig[] = defaultConfigs()) {
+  constructor(options: GravityFieldOptions = {}) {
+    const configs = options.configs ?? defaultConfigs()
+    this.centerX = options.center?.x ?? VIEW_WIDTH / 2
+    this.centerY = options.center?.y ?? VIEW_HEIGHT / 2
     for (const config of configs) {
       const marker = new Graphics()
       this.drawMarker(marker, config.color, config.size, 1)

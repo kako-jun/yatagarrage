@@ -7,6 +7,7 @@ import {
   Ticker,
 } from 'pixi.js'
 import { COLORS } from '../constants/colors'
+import { applyBulletBehaviors } from '../game/bulletBehaviors'
 import { GravityField } from '../game/GravityField'
 import { TrailLayer } from '../game/Trail'
 import {
@@ -14,19 +15,20 @@ import {
   PatternContext,
   SpawnBulletInput,
 } from '../game/patterns'
-import {
-  Bullet,
-  BulletFlags,
-  VIEW_HEIGHT,
-  VIEW_WIDTH,
-} from '../types/GameState'
+import { Bullet, VIEW_HEIGHT, VIEW_WIDTH } from '../types/GameState'
 
-const TOOLBAR_HEIGHT = 110
 const PATTERN_BUTTON_SIZE = 36
+const PATTERN_BUTTON_GAP = 2
 const PATTERN_BUTTONS_PER_ROW = 12
+const PATTERN_GRID_ROWS = 3
+const TOOLBAR_PADDING = 6
+// 3 rows of pattern buttons + 1 bottom row of tool buttons + paddings
+const TOOLBAR_HEIGHT =
+  TOOLBAR_PADDING +
+  (PATTERN_GRID_ROWS + 1) * (PATTERN_BUTTON_SIZE + PATTERN_BUTTON_GAP) +
+  TOOLBAR_PADDING
 const PLAY_AREA_TOP = TOOLBAR_HEIGHT
-
-type DebugBullet = Bullet & { trailColor: number }
+const ORIGIN_INITIAL_Y = PLAY_AREA_TOP + 160
 
 type ToolbarButton = {
   container: Container
@@ -44,12 +46,14 @@ export class DebugScene extends Container {
   private toolbar = new Container()
   private playLayer = new Container()
   private trailLayer = new TrailLayer()
-  private gravity = new GravityField()
+  private gravity = new GravityField({
+    center: { x: VIEW_WIDTH / 2, y: (PLAY_AREA_TOP + VIEW_HEIGHT) / 2 },
+  })
   private entityGraphics = new Graphics()
   private originMarker = new Graphics()
   private statusText!: Text
-  private originPoint = { x: VIEW_WIDTH / 2, y: PLAY_AREA_TOP + 160 }
-  private bullets: DebugBullet[] = []
+  private originPoint = { x: VIEW_WIDTH / 2, y: ORIGIN_INITIAL_Y }
+  private bullets: Bullet[] = []
   private scheduled: { fireAt: number; fn: () => void }[] = []
   private nextId = 1
   private elapsedMs = 0
@@ -111,13 +115,14 @@ export class DebugScene extends Container {
       const pattern = PATTERNS[i]
       const col = i % PATTERN_BUTTONS_PER_ROW
       const row = Math.floor(i / PATTERN_BUTTONS_PER_ROW)
-      const x = 8 + col * (PATTERN_BUTTON_SIZE + 2)
-      const y = 6 + row * (PATTERN_BUTTON_SIZE + 2)
+      const x = TOOLBAR_PADDING + col * (PATTERN_BUTTON_SIZE + PATTERN_BUTTON_GAP)
+      const y = TOOLBAR_PADDING + row * (PATTERN_BUTTON_SIZE + PATTERN_BUTTON_GAP)
       this.addPatternButton(pattern.id, pattern.label, x, y)
     }
 
     // Row 4 (bottom): toolbar buttons
-    const bottomY = 6 + 3 * (PATTERN_BUTTON_SIZE + 2)
+    const bottomY =
+      TOOLBAR_PADDING + PATTERN_GRID_ROWS * (PATTERN_BUTTON_SIZE + PATTERN_BUTTON_GAP)
     let nextX = 8
     nextX = this.addToolbarButton({
       x: nextX,
@@ -292,7 +297,7 @@ export class DebugScene extends Container {
   }
 
   private spawnBullet(input: SpawnBulletInput): Bullet | null {
-    const bullet: DebugBullet = {
+    const bullet: Bullet = {
       id: this.nextId++,
       x: input.x,
       y: input.y,
@@ -301,7 +306,6 @@ export class DebugScene extends Container {
       radius: (input.size ?? 4) + 2,
       alive: true,
       color: input.color ?? COLORS.enemyBullet,
-      trailColor: input.color ?? COLORS.enemyBullet,
       size: input.size ?? 4,
       spawnedAt: this.elapsedMs,
       lifespan: input.lifespan ?? 8000,
@@ -330,9 +334,17 @@ export class DebugScene extends Container {
 
   private updateBullets(dtMs: number): void {
     const dt = dtMs / 1000
+    const virtualPlayer = { x: this.originPoint.x, y: this.originPoint.y + 200 }
+    const convergePoint = { x: VIEW_WIDTH / 2, y: VIEW_HEIGHT / 2 }
     this.bullets = this.bullets.filter(bullet => {
       this.gravity.applyTo(bullet, dtMs)
-      this.applyFlags(bullet, dtMs)
+      applyBulletBehaviors(bullet, {
+        nowMs: this.elapsedMs,
+        dtMs,
+        homingTarget: virtualPlayer,
+        convergePoint,
+        twoStageBehavior: 'reverse',
+      })
       bullet.x += bullet.vx * dt
       bullet.y += bullet.vy * dt
       const age = this.elapsedMs - bullet.spawnedAt
@@ -350,80 +362,9 @@ export class DebugScene extends Container {
     })
   }
 
-  private applyFlags(bullet: DebugBullet, dtMs: number): void {
-    const flags: BulletFlags = bullet.flags
-    if (flags.accelerating) {
-      bullet.vx *= 1 + 0.002 * dtMs
-      bullet.vy *= 1 + 0.002 * dtMs
-    }
-    if (flags.decelerating) {
-      bullet.vx *= 1 - 0.002 * dtMs
-      bullet.vy *= 1 - 0.002 * dtMs
-    }
-    if (flags.wave) {
-      const phase = (bullet.data.wavePhase ?? 0) + 0.1
-      bullet.data.wavePhase = phase
-      const angle = Math.atan2(bullet.vy, bullet.vx) + Math.sin(phase) * 0.05
-      const speed = Math.hypot(bullet.vx, bullet.vy)
-      bullet.vx = Math.cos(angle) * speed
-      bullet.vy = Math.sin(angle) * speed
-    }
-    if (flags.converging) {
-      this.turn(bullet, VIEW_WIDTH / 2, VIEW_HEIGHT / 2, 0.02, 1)
-    }
-    if (flags.diverging) {
-      this.turnAway(bullet, VIEW_WIDTH / 2, VIEW_HEIGHT / 2, 0.02, 1.005)
-    }
-    if (flags.twoStage && !bullet.data.secondStage) {
-      const switchAt = bullet.data.stageSwitchAt ?? 0
-      if (this.elapsedMs >= switchAt) {
-        // In debug, just reverse direction so the change is visible.
-        bullet.vx = -bullet.vx
-        bullet.vy = -bullet.vy
-        bullet.data.secondStage = true
-      }
-    }
-  }
-
-  private turn(
-    bullet: DebugBullet,
-    tx: number,
-    ty: number,
-    rate: number,
-    scale: number
-  ): void {
-    const angleTo = Math.atan2(ty - bullet.y, tx - bullet.x)
-    const current = Math.atan2(bullet.vy, bullet.vx)
-    let diff = angleTo - current
-    while (diff > Math.PI) diff -= Math.PI * 2
-    while (diff < -Math.PI) diff += Math.PI * 2
-    const newAngle = current + Math.sign(diff) * Math.min(Math.abs(diff), rate)
-    const speed = Math.hypot(bullet.vx, bullet.vy) * scale
-    bullet.vx = Math.cos(newAngle) * speed
-    bullet.vy = Math.sin(newAngle) * speed
-  }
-
-  private turnAway(
-    bullet: DebugBullet,
-    fx: number,
-    fy: number,
-    rate: number,
-    scale: number
-  ): void {
-    const angleAway = Math.atan2(bullet.y - fy, bullet.x - fx)
-    const current = Math.atan2(bullet.vy, bullet.vx)
-    let diff = angleAway - current
-    while (diff > Math.PI) diff -= Math.PI * 2
-    while (diff < -Math.PI) diff += Math.PI * 2
-    const newAngle = current + Math.sign(diff) * Math.min(Math.abs(diff), rate)
-    const speed = Math.hypot(bullet.vx, bullet.vy) * scale
-    bullet.vx = Math.cos(newAngle) * speed
-    bullet.vy = Math.sin(newAngle) * speed
-  }
-
   private redrawBullets(): void {
     for (const bullet of this.bullets) {
-      this.trailLayer.add(bullet.id, bullet.x, bullet.y, bullet.trailColor, bullet.size)
+      this.trailLayer.add(bullet.id, bullet.x, bullet.y, bullet.color, bullet.size)
     }
     this.trailLayer.update()
 

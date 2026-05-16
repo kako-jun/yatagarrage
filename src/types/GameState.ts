@@ -55,6 +55,7 @@ export type Enemy = Entity & {
 
 export type PlayerBullet = Entity & {
   color: number
+  size: number
 }
 
 export type GameState = {

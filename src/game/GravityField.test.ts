@@ -18,7 +18,7 @@ const makeBullet = () => ({ x: 100, y: 100, vx: 0, vy: 0 })
 
 describe('GravityField.applyTo', () => {
   it('does nothing when disabled', () => {
-    const field = new GravityField(singleSource)
+    const field = new GravityField({ configs: singleSource })
     field.setEnabled(false)
     const bullet = makeBullet()
     field.applyTo(bullet, 16)
@@ -27,7 +27,7 @@ describe('GravityField.applyTo', () => {
   })
 
   it('pulls bullet toward the source position', () => {
-    const field = new GravityField(singleSource)
+    const field = new GravityField({ configs: singleSource })
     // single source sits at the field center (radius 0)
     const bullet = makeBullet()
     field.applyTo(bullet, 16)
@@ -37,7 +37,7 @@ describe('GravityField.applyTo', () => {
   })
 
   it('skips very close bullets (avoids singularity)', () => {
-    const field = new GravityField(singleSource)
+    const field = new GravityField({ configs: singleSource })
     const bullet = { x: VIEW_WIDTH / 2 + 1, y: VIEW_HEIGHT / 2 + 1, vx: 0, vy: 0 }
     field.applyTo(bullet, 16)
     expect(bullet.vx).toBe(0)
@@ -58,7 +58,7 @@ describe('GravityField.update', () => {
         angle: 0,
       },
     ]
-    const field = new GravityField(orbitingSource)
+    const field = new GravityField({ configs: orbitingSource })
     field.setEnabled(false)
     const initialChildCount = field.container.children.length
     // shouldn't throw, and source markers don't get repositioned
@@ -78,13 +78,38 @@ describe('GravityField.update', () => {
         angle: 0,
       },
     ]
-    const field = new GravityField(orbitingSource)
-    field.update(1000) // 1 second
-    const bullet = { x: 0, y: VIEW_HEIGHT / 2, vx: 0, vy: 0 }
-    // After 1s at speed 1.0, source angle should have moved from 0 to ~1.0 rad
-    field.applyTo(bullet, 16)
-    // Just verify the field is still functional and acceleration applied
-    const speedAfter = Math.hypot(bullet.vx, bullet.vy)
-    expect(speedAfter).toBeGreaterThan(0)
+    const field = new GravityField({ configs: orbitingSource })
+    // 1 second update at speed 1.0 rad/s → angle = 1.0 rad
+    field.update(1000)
+    // Source center is (VIEW_WIDTH/2, VIEW_HEIGHT/2) = (400, 300)
+    // After 1 rad, source position should be roughly:
+    //   x = 400 + cos(1) * 100 ≈ 454.03
+    //   y = 300 + sin(1) * 100 ≈ 384.15
+    // Marker is the first child added (one source = one marker)
+    const marker = field.container.children[0] as { x: number; y: number }
+    expect(marker.x).toBeCloseTo(400 + Math.cos(1) * 100, 1)
+    expect(marker.y).toBeCloseTo(300 + Math.sin(1) * 100, 1)
+  })
+
+  it('uses custom center when provided', () => {
+    const orbitingSource: GravitySourceConfig[] = [
+      {
+        id: 'orbit',
+        radius: 50,
+        speed: 0,
+        strength: 100_000,
+        size: 6,
+        color: 0xffffff,
+        angle: 0,
+      },
+    ]
+    const field = new GravityField({
+      center: { x: 200, y: 200 },
+      configs: orbitingSource,
+    })
+    field.update(0)
+    const marker = field.container.children[0] as { x: number; y: number }
+    expect(marker.x).toBeCloseTo(200 + 50, 1)
+    expect(marker.y).toBeCloseTo(200, 1)
   })
 })

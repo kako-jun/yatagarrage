@@ -3,8 +3,8 @@
 ## 全体像
 
 PixiJS 8 の `Application` を 1 つ作り、`app.stage` 直下に `SceneManager.world` を置く。
-シーン (Title / Game / GameOver) は全て `Container` で、`SceneManager` が `visible` を切り替えるだけ。
-`app.ticker` は毎フレーム動き、`sceneManager.current === 'game'` のときだけ `GameScene.update(ticker)` を呼ぶ。
+シーン (Title / Game / GameOver / Debug) は全て `Container` で、`SceneManager` が `visible` を切り替えるだけ。
+`app.ticker` は毎フレーム動き、`sceneManager.current` が `'game'` のとき `GameScene.update(ticker)`、`'debug'` のとき `DebugScene.update(ticker)` を呼ぶ。
 
 ```
 Application
@@ -12,8 +12,13 @@ Application
     └── SceneManager.world
         ├── TitleScene      (visible 切替)
         ├── GameScene       (visible 切替)
-        └── GameOverScene   (visible 切替)
+        ├── GameOverScene   (visible 切替)
+        └── DebugScene      (visible 切替、タイトル右下「Debug Mode」ボタンから遷移)
 ```
+
+## 弾挙動の共通ロジック
+
+`src/game/bulletBehaviors.ts` に `applyBulletBehaviors(bullet, ctx)` を集約。GameScene / DebugScene 両方から呼ばれる。`BulletFlags` (`homing / accelerating / decelerating / wave / converging / diverging / twoStage`) の挙動はここで一元管理されており、シーンごとの差は `BulletBehaviorContext` の `homingTarget / convergePoint / twoStageBehavior` で吸収する (GameScene = `aim`, DebugScene = `reverse`)。
 
 シーン遷移は `SceneManager.show(key)` 一本で完結。各シーンが自分の Pointer / Keyboard ハンドラを持つ。
 

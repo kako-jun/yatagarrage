@@ -100,11 +100,15 @@ export class TitleScene extends Container {
       this.addChild(debugButton)
     }
 
+    // 点滅は app の寿命と同じ rAF ループ。visible 中だけ alpha を更新するので
+    // Title → Debug → Title のように再表示しても点滅が止まらない。
     let blinkPhase = 0
     const tick = () => {
-      blinkPhase += 0.05
-      start.alpha = 0.5 + Math.sin(blinkPhase) * 0.5
-      if (this.visible) requestAnimationFrame(tick)
+      if (this.visible) {
+        blinkPhase += 0.05
+        start.alpha = 0.5 + Math.sin(blinkPhase) * 0.5
+      }
+      requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
 

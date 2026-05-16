@@ -12,8 +12,8 @@ export class TrailLayer {
   readonly container = new Container()
   private graphics = new Graphics()
   private readonly trails = new Map<number, TrailPoint[]>()
-  private maxLength = 10
-  private decay = 0.1
+  private readonly maxLength = 10
+  private readonly decay = 0.1
 
   constructor() {
     this.container.addChild(this.graphics)

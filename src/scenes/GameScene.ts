@@ -1,5 +1,7 @@
 import { Container, Graphics, Text, Ticker } from 'pixi.js'
 import { COLORS } from '../constants/colors'
+import { applyBulletBehaviors } from '../game/bulletBehaviors'
+import { clamp, overlapsCircle } from '../game/collision'
 import { GravityField } from '../game/GravityField'
 import { Input } from '../game/Input'
 import { TrailLayer } from '../game/Trail'
@@ -21,6 +23,7 @@ import {
 const PLAYER_FIRE_RATE_MS = 200
 const PLAYER_SPEED = 300
 const PLAYER_BULLET_SPEED = 500
+const PLAYER_BULLET_RADIUS = 5
 const ENEMY_SPAWN_INTERVAL_MS = 1000
 const ENEMY_FALL_SPEED_MIN = 100
 const ENEMY_FALL_SPEED_MAX = 200
@@ -29,6 +32,7 @@ const ENEMY_FIRE_INTERVAL_MAX = 1500
 const BULLET_DEFAULT_LIFESPAN_MS = 6000
 const BULLET_DEFAULT_RADIUS = 4
 const ENEMY_RADIUS = 15
+const TWO_STAGE_AIM_SPEED = 250
 
 type ScheduledCallback = { fireAt: number; fn: () => void }
 
@@ -50,7 +54,14 @@ export class GameScene extends Container {
   private indicatorClearAt = 0
   private nextEntityId = 1
   private scheduled: ScheduledCallback[] = []
-  private pendingMove: { x: number; y: number; duration: number; t: number } | null = null
+  private pendingMove: {
+    startX: number
+    startY: number
+    x: number
+    y: number
+    duration: number
+    t: number
+  } | null = null
 
   constructor() {
     super()
@@ -86,6 +97,9 @@ export class GameScene extends Container {
     this.scheduled = []
     this.pendingMove = null
     this.nextEntityId = 1
+    // タイトル/GameOver 中に押されたままだったキーが新規ゲームに持ち越され、
+    // 開始直後に自動射撃する不具合を防ぐ
+    this.input.resetState()
     this.trailLayer.clear()
     this.moveIndicator.clear()
     this.shootIndicator.clear()
@@ -195,10 +209,9 @@ export class GameScene extends Container {
         player.y = move.y
         this.pendingMove = null
       } else {
-        const remaining = move.duration - (move.t - dt)
-        const stepFrac = dt / remaining
-        player.x += (move.x - player.x) * stepFrac
-        player.y += (move.y - player.y) * stepFrac
+        const ratio = move.t / move.duration
+        player.x = move.startX + (move.x - move.startX) * ratio
+        player.y = move.startY + (move.y - move.startY) * ratio
       }
     } else {
       player.x += player.vx * dt
@@ -221,7 +234,7 @@ export class GameScene extends Container {
     const dy = y - player.y
     const distance = Math.sqrt(dx * dx + dy * dy)
     const duration = Math.max(distance / PLAYER_SPEED, 0.1)
-    this.pendingMove = { x, y, duration, t: 0 }
+    this.pendingMove = { startX: player.x, startY: player.y, x, y, duration, t: 0 }
     player.vx = 0
     player.vy = 0
   }
@@ -234,9 +247,10 @@ export class GameScene extends Container {
       y,
       vx: 0,
       vy: -PLAYER_BULLET_SPEED,
-      radius: 5,
+      radius: PLAYER_BULLET_RADIUS,
       alive: true,
       color: COLORS.playerBullet,
+      size: PLAYER_BULLET_RADIUS,
     }
     this.state.bullets.push(bullet)
   }
@@ -253,9 +267,10 @@ export class GameScene extends Container {
       y: player.y,
       vx: Math.cos(angle) * PLAYER_BULLET_SPEED,
       vy: Math.sin(angle) * PLAYER_BULLET_SPEED,
-      radius: 5,
+      radius: PLAYER_BULLET_RADIUS,
       alive: true,
       color: COLORS.playerBullet,
+      size: PLAYER_BULLET_RADIUS,
     }
     state.bullets.push(bullet)
     state.lastFiredAt = state.elapsedMs
@@ -340,6 +355,7 @@ export class GameScene extends Container {
     firePattern(enemy.patternId, {
       enemy: { x: enemy.x, y: enemy.y },
       player: { x: player.x, y: player.y },
+      playerVelocity: { vx: player.vx, vy: player.vy },
       now: state.elapsedMs,
       spawn: input => this.spawnEnemyBullet(input),
       scheduleDelay: (delayMs, fn) =>
@@ -394,9 +410,19 @@ export class GameScene extends Container {
     const dt = deltaMs / 1000
     const state = this.state
     const player = state.player
+    const homingTarget = { x: player.x, y: player.y }
+    const convergePoint = { x: VIEW_WIDTH / 2, y: VIEW_HEIGHT / 2 }
+    const twoStageTarget = { x: player.x, y: player.y, speed: TWO_STAGE_AIM_SPEED }
     state.enemyBullets = state.enemyBullets.filter(bullet => {
       this.gravity.applyTo(bullet, deltaMs)
-      this.applyBulletBehaviors(bullet, deltaMs, player)
+      applyBulletBehaviors(bullet, {
+        nowMs: state.elapsedMs,
+        dtMs: deltaMs,
+        homingTarget,
+        convergePoint,
+        twoStageBehavior: 'aim',
+        twoStageTarget,
+      })
       bullet.x += bullet.vx * dt
       bullet.y += bullet.vy * dt
       const age = state.elapsedMs - bullet.spawnedAt
@@ -412,90 +438,6 @@ export class GameScene extends Container {
       }
       return true
     })
-  }
-
-  private applyBulletBehaviors(bullet: Bullet, deltaMs: number, player: GameState['player']): void {
-    const flags = bullet.flags
-    if (flags.homing) {
-      const homingDelay = bullet.data.homingDelay ?? 0
-      const age = (this.state?.elapsedMs ?? 0) - bullet.spawnedAt
-      if (age >= homingDelay) {
-        const angleToPlayer = Math.atan2(player.y - bullet.y, player.x - bullet.x)
-        const currentAngle = Math.atan2(bullet.vy, bullet.vx)
-        const speed = Math.hypot(bullet.vx, bullet.vy)
-        const turn = 0.05
-        const diff = angleDiff(currentAngle, angleToPlayer)
-        const newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), turn)
-        bullet.vx = Math.cos(newAngle) * speed
-        bullet.vy = Math.sin(newAngle) * speed
-      }
-    }
-    if (flags.accelerating) {
-      bullet.vx *= 1 + 0.002 * deltaMs
-      bullet.vy *= 1 + 0.002 * deltaMs
-    }
-    if (flags.decelerating) {
-      bullet.vx *= 1 - 0.002 * deltaMs
-      bullet.vy *= 1 - 0.002 * deltaMs
-    }
-    if (flags.wave) {
-      const phase = (bullet.data.wavePhase ?? 0) + 0.1
-      bullet.data.wavePhase = phase
-      const currentAngle = Math.atan2(bullet.vy, bullet.vx)
-      const waveOffset = Math.sin(phase) * 0.05
-      const newAngle = currentAngle + waveOffset
-      const speed = Math.hypot(bullet.vx, bullet.vy)
-      bullet.vx = Math.cos(newAngle) * speed
-      bullet.vy = Math.sin(newAngle) * speed
-    }
-    if (flags.converging) {
-      this.turnTowards(bullet, VIEW_WIDTH / 2, VIEW_HEIGHT / 2, 0.02, 1)
-    }
-    if (flags.diverging) {
-      this.turnAwayFrom(bullet, VIEW_WIDTH / 2, VIEW_HEIGHT / 2, 0.02, 1.005)
-    }
-    if (flags.twoStage && !bullet.data.secondStage) {
-      const switchAt = bullet.data.stageSwitchAt ?? 0
-      if ((this.state?.elapsedMs ?? 0) >= switchAt) {
-        const angle = Math.atan2(player.y - bullet.y, player.x - bullet.x)
-        const speed = 250
-        bullet.vx = Math.cos(angle) * speed
-        bullet.vy = Math.sin(angle) * speed
-        bullet.data.secondStage = true
-      }
-    }
-  }
-
-  private turnTowards(
-    bullet: Bullet,
-    targetX: number,
-    targetY: number,
-    turnRate: number,
-    speedScale: number
-  ): void {
-    const angleToTarget = Math.atan2(targetY - bullet.y, targetX - bullet.x)
-    const currentAngle = Math.atan2(bullet.vy, bullet.vx)
-    const diff = angleDiff(currentAngle, angleToTarget)
-    const newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), turnRate)
-    const speed = Math.hypot(bullet.vx, bullet.vy) * speedScale
-    bullet.vx = Math.cos(newAngle) * speed
-    bullet.vy = Math.sin(newAngle) * speed
-  }
-
-  private turnAwayFrom(
-    bullet: Bullet,
-    fromX: number,
-    fromY: number,
-    turnRate: number,
-    speedScale: number
-  ): void {
-    const angleFrom = Math.atan2(bullet.y - fromY, bullet.x - fromX)
-    const currentAngle = Math.atan2(bullet.vy, bullet.vx)
-    const diff = angleDiff(currentAngle, angleFrom)
-    const newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), turnRate)
-    const speed = Math.hypot(bullet.vx, bullet.vy) * speedScale
-    bullet.vx = Math.cos(newAngle) * speed
-    bullet.vy = Math.sin(newAngle) * speed
   }
 
   private processScheduled(): void {
@@ -585,7 +527,7 @@ export class GameScene extends Container {
       ]).fill({ color: COLORS.player, alpha: blink })
     }
     for (const bullet of state.bullets) {
-      g.circle(bullet.x, bullet.y, 5).fill({ color: bullet.color })
+      g.circle(bullet.x, bullet.y, bullet.size).fill({ color: bullet.color })
     }
     for (const enemy of state.enemies) {
       g.rect(enemy.x - enemy.radius, enemy.y - enemy.radius, enemy.radius * 2, enemy.radius * 2).fill({
@@ -628,22 +570,4 @@ export class GameScene extends Container {
   }
 }
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value))
 
-const overlapsCircle = (
-  a: { x: number; y: number; radius: number },
-  b: { x: number; y: number; radius: number }
-): boolean => {
-  const dx = a.x - b.x
-  const dy = a.y - b.y
-  const r = a.radius + b.radius
-  return dx * dx + dy * dy <= r * r
-}
-
-const angleDiff = (from: number, to: number): number => {
-  let diff = to - from
-  while (diff > Math.PI) diff -= Math.PI * 2
-  while (diff < -Math.PI) diff += Math.PI * 2
-  return diff
-}

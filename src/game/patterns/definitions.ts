@@ -357,15 +357,13 @@ export const PATTERNS: readonly Pattern[] = [
     id: 30,
     label: '予測弾',
     fire: ctx => {
-      const predictTime = 0.5
-      const predictX = ctx.player.x
-      const predictY = ctx.player.y
-      const angle = angleTo(
-        ctx.enemy.x,
-        ctx.enemy.y,
-        predictX,
-        predictY + predictTime
-      )
+      // プレイヤーの未来位置 (PREDICT_TIME 秒後) を狙う。
+      const PREDICT_TIME = 0.5
+      const vx = ctx.playerVelocity?.vx ?? 0
+      const vy = ctx.playerVelocity?.vy ?? 0
+      const predictX = ctx.player.x + vx * PREDICT_TIME
+      const predictY = ctx.player.y + vy * PREDICT_TIME
+      const angle = angleTo(ctx.enemy.x, ctx.enemy.y, predictX, predictY)
       for (let i = 0; i < 3; i += 1) {
         const spreadAngle = angle + (i - 1) * 0.15
         ctx.spawn({

@@ -73,6 +73,14 @@ export class Input {
     }
   }
 
+  resetState(): void {
+    this.state.left = false
+    this.state.right = false
+    this.state.up = false
+    this.state.down = false
+    this.state.shoot = false
+  }
+
   detachKeyboard(): void {
     this.removeKeyboardListeners?.()
     this.removeKeyboardListeners = null

@@ -205,4 +205,86 @@ describe('aimed patterns', () => {
     const angle = Math.atan2(spawned[0].vy, spawned[0].vx)
     expect(angle).toBeCloseTo(Math.PI / 2)
   })
+
+  it('pattern 30 (predict) uses playerVelocity to lead the target', () => {
+    const { ctx, spawned } = makeCtx()
+    ctx.playerVelocity = { vx: 100, vy: 0 }
+    findPattern(30).fire(ctx)
+    expect(spawned).toHaveLength(3)
+    // Predicted target: player + velocity * 0.5 = (400+50, 500) → angle from (400,100)
+    const expected = Math.atan2(500 - 100, 450 - 400)
+    const center = Math.atan2(spawned[1].vy, spawned[1].vx)
+    expect(center).toBeCloseTo(expected)
+  })
+
+  it('pattern 30 (predict) falls back to current player position when velocity missing', () => {
+    const { ctx, spawned } = makeCtx()
+    findPattern(30).fire(ctx)
+    const expected = Math.atan2(500 - 100, 400 - 400)
+    const center = Math.atan2(spawned[1].vy, spawned[1].vx)
+    expect(center).toBeCloseTo(expected)
+  })
+})
+
+describe('geometric patterns', () => {
+  const angles = (spawned: { vx: number; vy: number }[]) =>
+    spawned
+      .map(b => {
+        const a = Math.atan2(b.vy, b.vx)
+        return a < 0 ? a + Math.PI * 2 : a
+      })
+      .sort((a, b) => a - b)
+
+  it('pattern 13 (cross) shoots 0 / π/2 / π / 3π/2', () => {
+    const { ctx, spawned } = makeCtx()
+    findPattern(13).fire(ctx)
+    const got = angles(spawned)
+    const want = [0, Math.PI / 2, Math.PI, (Math.PI * 3) / 2]
+    expect(got.length).toBe(4)
+    for (let i = 0; i < 4; i += 1) expect(got[i]).toBeCloseTo(want[i])
+  })
+
+  it('pattern 14 (X) shoots π/4 / 3π/4 / 5π/4 / 7π/4', () => {
+    const { ctx, spawned } = makeCtx()
+    findPattern(14).fire(ctx)
+    const got = angles(spawned)
+    const want = [
+      Math.PI / 4,
+      (Math.PI * 3) / 4,
+      (Math.PI * 5) / 4,
+      (Math.PI * 7) / 4,
+    ]
+    expect(got.length).toBe(4)
+    for (let i = 0; i < 4; i += 1) expect(got[i]).toBeCloseTo(want[i])
+  })
+
+  it('pattern 15 (asterisk) shoots 8 evenly spaced angles', () => {
+    const { ctx, spawned } = makeCtx()
+    findPattern(15).fire(ctx)
+    const got = angles(spawned)
+    expect(got.length).toBe(8)
+    for (let i = 0; i < 8; i += 1) {
+      expect(got[i]).toBeCloseTo((Math.PI * 2 * i) / 8)
+    }
+  })
+
+  it('pattern 2 (ring 8) shoots 8 evenly spaced angles', () => {
+    const { ctx, spawned } = makeCtx()
+    findPattern(2).fire(ctx)
+    const got = angles(spawned)
+    expect(got.length).toBe(8)
+    for (let i = 0; i < 8; i += 1) {
+      expect(got[i]).toBeCloseTo((Math.PI * 2 * i) / 8)
+    }
+  })
+
+  it('pattern 5 (ring 32) shoots 32 evenly spaced angles', () => {
+    const { ctx, spawned } = makeCtx()
+    findPattern(5).fire(ctx)
+    const got = angles(spawned)
+    expect(got.length).toBe(32)
+    for (let i = 0; i < 32; i += 1) {
+      expect(got[i]).toBeCloseTo((Math.PI * 2 * i) / 32)
+    }
+  })
 })
