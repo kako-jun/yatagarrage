@@ -89,6 +89,23 @@ describe('applyBulletBehaviors', () => {
     expect(newAngle).toBeLessThanOrEqual(0.02 + 1e-9)
   })
 
+  it('diverging rotates away from convergePoint and slightly accelerates', () => {
+    const flags: BulletFlags = { diverging: true }
+    // Bullet at (100, 0) moving +X (away from origin already), origin at (0, 0).
+    // Diverging keeps it heading outward; speed grows by ~0.5% per call.
+    const bullet = makeBullet({ flags, x: 100, y: 0, vx: 100, vy: 0 })
+    const speedBefore = Math.hypot(bullet.vx, bullet.vy)
+    applyBulletBehaviors(bullet, {
+      nowMs: 0,
+      dtMs: 16,
+      convergePoint: { x: 0, y: 0 },
+    })
+    const speedAfter = Math.hypot(bullet.vx, bullet.vy)
+    expect(speedAfter).toBeCloseTo(speedBefore * 1.005)
+    // 既に外向きなので角度はほぼ維持される
+    expect(Math.atan2(bullet.vy, bullet.vx)).toBeCloseTo(0)
+  })
+
   it('twoStage with reverse behavior flips velocity at stage switch', () => {
     const flags: BulletFlags = { twoStage: true }
     const bullet = makeBullet({

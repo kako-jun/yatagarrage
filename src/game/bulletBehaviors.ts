@@ -1,14 +1,24 @@
 import { Bullet } from '../types/GameState'
 
 export type BulletBehaviorContext = {
+  /** 現在の経過時間 (ms)。homing 遅延・twoStage 切替時刻の判定に使う。 */
   nowMs: number
+  /** 前フレームからの delta 時間 (ms)。accelerating/decelerating の係数に使う。 */
   dtMs: number
+  /** homing 弾が向かう先。未指定または `flags.homing` なしの場合は何もしない。 */
   homingTarget?: { x: number; y: number }
+  /** converging / diverging 弾の参照点。GameScene/DebugScene 共に画面中央を使うことが多い。 */
   convergePoint?: { x: number; y: number }
+  /**
+   * `twoStageBehavior === 'aim'` のとき必要。二段階目で向かう座標と新しい速度。
+   * 'reverse' モードでは使われない (ベクトル反転だけ)。
+   */
   twoStageTarget?: { x: number; y: number; speed: number }
   /**
-   * 二段階弾の secondStage 切替時に新たに採用する終端方向。
-   * twoStageTarget を渡さない場合はベクトル反転 (DebugScene 用)。
+   * 二段階弾の secondStage 切替時の挙動。
+   * - `'aim'`: `twoStageTarget` へ方向転換 (GameScene のプレイヤー追尾)
+   * - `'reverse'`: ベクトル反転 (DebugScene のプレビュー)
+   * - 未指定: 'reverse' と同じ扱い
    */
   twoStageBehavior?: 'aim' | 'reverse'
 }

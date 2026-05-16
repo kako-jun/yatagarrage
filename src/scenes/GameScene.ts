@@ -355,6 +355,8 @@ export class GameScene extends Container {
     firePattern(enemy.patternId, {
       enemy: { x: enemy.x, y: enemy.y },
       player: { x: player.x, y: player.y },
+      // tween 移動中は player.vx/vy が 0 になる仕様 (startTweenMove で 0 にリセット)。
+      // 予測弾 (Pattern #30) もその間は現在位置狙いになる。問題は意図的に許容。
       playerVelocity: { vx: player.vx, vy: player.vy },
       now: state.elapsedMs,
       spawn: input => this.spawnEnemyBullet(input),

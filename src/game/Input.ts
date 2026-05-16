@@ -84,11 +84,7 @@ export class Input {
   detachKeyboard(): void {
     this.removeKeyboardListeners?.()
     this.removeKeyboardListeners = null
-    this.state.left = false
-    this.state.right = false
-    this.state.up = false
-    this.state.down = false
-    this.state.shoot = false
+    this.resetState()
   }
 
   attachPointer(target: Container, viewWidth: number, viewHeight: number, edgeThreshold = 100): void {

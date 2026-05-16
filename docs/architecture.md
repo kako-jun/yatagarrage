@@ -18,7 +18,12 @@ Application
 
 ## 弾挙動の共通ロジック
 
-`src/game/bulletBehaviors.ts` に `applyBulletBehaviors(bullet, ctx)` を集約。GameScene / DebugScene 両方から呼ばれる。`BulletFlags` (`homing / accelerating / decelerating / wave / converging / diverging / twoStage`) の挙動はここで一元管理されており、シーンごとの差は `BulletBehaviorContext` の `homingTarget / convergePoint / twoStageBehavior` で吸収する (GameScene = `aim`, DebugScene = `reverse`)。
+`src/game/bulletBehaviors.ts` に `applyBulletBehaviors(bullet, ctx)` を集約。GameScene / DebugScene 両方から呼ばれる。`BulletFlags` (`homing / accelerating / decelerating / wave / converging / diverging / twoStage`) の挙動はここで一元管理されており、シーンごとの差は `BulletBehaviorContext` の以下フィールドで吸収:
+
+- `homingTarget` — homing 弾が向かう座標 (GameScene = プレイヤー / DebugScene = 仮想プレイヤー)
+- `convergePoint` — converging / diverging の参照点 (両方とも画面中央)
+- `twoStageBehavior` — `'aim'` (GameScene / プレイヤー方向へ転換) または `'reverse'` (DebugScene / ベクトル反転)
+- `twoStageTarget` — `'aim'` モードで使う `{ x, y, speed }`。`'reverse'` のときは不要
 
 シーン遷移は `SceneManager.show(key)` 一本で完結。各シーンが自分の Pointer / Keyboard ハンドラを持つ。
 

@@ -102,6 +102,9 @@ export class TitleScene extends Container {
 
     // 点滅は app の寿命と同じ rAF ループ。visible 中だけ alpha を更新するので
     // Title → Debug → Title のように再表示しても点滅が止まらない。
+    // 注意: TitleScene は main.ts で 1 個しか生成しない前提なので、cancelAnimationFrame
+    // で停止する API は持たない。シーン破棄が必要になった場合は破棄フラグ用の boxed
+    // bool を持たせて tick から早期 return する形に書き直す。
     let blinkPhase = 0
     const tick = () => {
       if (this.visible) {
