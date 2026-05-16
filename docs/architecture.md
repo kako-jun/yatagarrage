@@ -46,7 +46,7 @@ Application
 
 ## 衝突判定
 
-AABB の代わりに**円距離**を使う。
+AABB の代わりに**円距離**を使う。実装は `src/game/collision.ts` の `overlapsCircle` (sum of radii 境界 inclusive)。同ファイルに `clamp` も同居 (プレイヤー位置の画面内固定で使う)。
 
 ```ts
 const overlapsCircle = (a, b) =>
