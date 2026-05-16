@@ -52,8 +52,15 @@ const overlapsCircle = (a, b) =>
 
 ## 弾幕パターン
 
-`src/game/patterns.ts` の `firePattern(patternId, ctx)` が switch でパターン 1-35 を分岐。
-各ケースは `ctx.spawn({ x, y, vx, vy, ... })` を呼ぶ純関数的な実装。
+`src/game/patterns/` ディレクトリ構成:
+
+- `types.ts` — `PatternContext`, `SpawnBulletInput`, `Pattern` 型
+- `helpers.ts` — `angleTo`, `baseAngle`, `fan`, `ring`, `spiral`, `rotating`
+- `definitions.ts` — `PATTERNS: readonly Pattern[]` (35 件の `{ id, label, fire }`)
+- `index.ts` — `firePattern(id, ctx)` dispatcher + `PATTERN_COUNT` + `PATTERN_DESCRIPTIONS`
+
+各 `Pattern.fire(ctx)` は `ctx.spawn({ x, y, vx, vy, ... })` を呼ぶ純関数的な実装。
+レジストリを Array で持つことで、テストから直接 `PATTERNS.find(p => p.id === N).fire(ctx)` を呼べる。
 
 挙動フラグ (`BulletFlags`):
 

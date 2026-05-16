@@ -17,7 +17,7 @@ PixiJS 8 + Vite + TypeScript で作るブラウザ弾幕シューティング。
 - **Vite 6** — 開発サーバ + 本番ビルド
 - **TypeScript 5** — strict
 - **ESLint 9 / Prettier 3** — 品質管理
-- **Vitest 2** — テスト基盤 (現状スケルトンのみ)
+- **Vitest 2** — 80 件のユニットテスト (`patterns/`, `GravityField`, `Input`, `GameState`)
 
 ## ディレクトリ構成
 
@@ -26,8 +26,8 @@ src/
 ├── main.ts                 # PixiJS Application bootstrap + Scene wiring
 ├── constants/colors.ts     # カラーパレット
 ├── types/GameState.ts      # GameState 型 + createInitialGameState
-├── scenes/                 # Title / Game / GameOver + SceneManager
-└── game/                   # GravityField / Input / Trail / patterns
+├── scenes/                 # Title / Game / GameOver / Debug + SceneManager
+└── game/                   # GravityField / Input / Trail / patterns/
 ```
 
 詳細は [docs/architecture.md](./docs/architecture.md) を参照。

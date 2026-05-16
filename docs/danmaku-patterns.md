@@ -1,7 +1,6 @@
 # 弾幕パターン (35 種)
 
-すべて `src/game/patterns.ts` の `firePattern(patternId, ctx)` の switch case として実装されている。
-日本語ラベルは `PATTERN_DESCRIPTIONS` を参照。
+すべて `src/game/patterns/definitions.ts` の `PATTERNS` 配列に `Pattern` 型エントリ (`{ id, label, fire }`) として実装されている。日本語ラベルは `PATTERN_DESCRIPTIONS` (index.ts で生成) を参照。
 
 ## 一覧
 
@@ -45,10 +44,10 @@
 
 ## パターン追加手順
 
-1. `src/game/patterns.ts` の `firePattern` の `switch` に新しい `case` を追加
-2. `PATTERN_DESCRIPTIONS` に日本語ラベルを追加
-3. `PATTERN_COUNT` を増やす (`src/scenes/GameScene.ts` の敵スポーン時のランダム選択範囲が連動)
-4. 必要なら `BulletFlags` を拡張し、`applyBulletBehaviors()` に挙動を実装
+1. `src/game/patterns/definitions.ts` の `PATTERNS` 配列に `{ id: N, label, fire: ctx => ... }` を追加
+2. `PATTERN_COUNT` と `PATTERN_DESCRIPTIONS` は `index.ts` で自動生成されるため追加作業不要
+3. 必要なら `BulletFlags` を拡張し、`GameScene.applyBulletBehaviors()` と `DebugScene.applyFlags()` に挙動を実装
+4. `definitions.test.ts` に spawn 数 / 角度 / flag のテストを追加
 
 ## 弾の挙動フラグ
 

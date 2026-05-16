@@ -7,7 +7,8 @@
 
 ## ゲーム機能
 
-- [ ] 旧 Phaser 版にあった Debug シーン (35 パターン個別発射 UI + 重力源 ON/OFF + 強度スライダー) を PixiJS で再実装
+- [x] 旧 Phaser 版にあった Debug シーン (35 パターン個別発射 UI + 重力源 ON/OFF) を PixiJS で復元 — `src/scenes/DebugScene.ts`。タイトル右下「Debug Mode」から遷移
+- [ ] Debug シーンに重力源強度スライダ追加 (旧版にはあったが未移植)
 - [ ] BGM / 効果音 (`repos/private/notes/.agasteer/notes/dev/yatagarrage.md` に Udio プロンプト掲載)
 - [ ] ステージシステム (現状は 1 ステージ永続スポーン)
 - [ ] スコア永続化 (Nostalgic Counter or 専用ランキング)
@@ -27,8 +28,8 @@
 
 ## コード品質
 
-- [ ] Vitest によるユニットテスト整備 (現状スケルトンのみ)
-- [ ] `firePattern` の switch 巨大化 → パターンごとにファイル分割する余地
+- [x] Vitest によるユニットテスト整備 — 80 件 green (`patterns/helpers`, `patterns/definitions`, `types/GameState`, `game/GravityField`, `game/Input`)
+- [x] `firePattern` の switch 分割 — `src/game/patterns/` に `types.ts` / `helpers.ts` / `definitions.ts` / `index.ts` で展開
 - [ ] ゲームバランス定数を `src/constants/balance.ts` 等に集約
 
 ## 参考
