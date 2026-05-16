@@ -32,7 +32,9 @@ type ToolbarButton = {
   container: Container
   bg: Graphics
   label: Text
+  width: number
   active: () => boolean
+  labelText: () => string
   onClick: () => void
 }
 
@@ -95,6 +97,7 @@ export class DebugScene extends Container {
     this.redrawBullets()
     this.drawOriginMarker()
     this.refreshToolbar()
+    this.updateStatusText()
   }
 
   private buildToolbar(): void {
@@ -118,16 +121,30 @@ export class DebugScene extends Container {
     // Row 4 (bottom): toolbar buttons
     const bottomY = 6 + 3 * (PATTERN_BUTTON_SIZE + 2)
     let nextX = 8
-    nextX = this.addToolbarButton('弾クリア', nextX, bottomY, 80, () => this.clearBullets(), () => false)
-    nextX = this.addToolbarButton(
-      '重力 ON',
-      nextX,
-      bottomY,
-      90,
-      () => this.toggleGravity(),
-      () => this.gravityEnabled
-    )
-    nextX = this.addToolbarButton('戻る', nextX, bottomY, 70, () => this.onBack?.(), () => false)
+    nextX = this.addToolbarButton({
+      x: nextX,
+      y: bottomY,
+      width: 80,
+      labelText: () => '弾クリア',
+      active: () => false,
+      onClick: () => this.clearBullets(),
+    })
+    nextX = this.addToolbarButton({
+      x: nextX,
+      y: bottomY,
+      width: 100,
+      labelText: () => (this.gravityEnabled ? '重力 ON' : '重力 OFF'),
+      active: () => this.gravityEnabled,
+      onClick: () => this.toggleGravity(),
+    })
+    nextX = this.addToolbarButton({
+      x: nextX,
+      y: bottomY,
+      width: 70,
+      labelText: () => '戻る',
+      active: () => false,
+      onClick: () => this.onBack?.(),
+    })
 
     this.statusText = new Text({
       text: this.activePatternLabel,
@@ -171,14 +188,15 @@ export class DebugScene extends Container {
     this.toolbar.addChild(container)
   }
 
-  private addToolbarButton(
-    text: string,
-    x: number,
-    y: number,
-    width: number,
-    onClick: () => void,
+  private addToolbarButton(spec: {
+    x: number
+    y: number
+    width: number
+    labelText: () => string
     active: () => boolean
-  ): number {
+    onClick: () => void
+  }): number {
+    const { x, y, width, labelText, active, onClick } = spec
     const container = new Container()
     container.x = x
     container.y = y
@@ -190,7 +208,7 @@ export class DebugScene extends Container {
     this.drawToolbarButtonBg(bg, width, active())
 
     const label = new Text({
-      text,
+      text: labelText(),
       style: { fontFamily: 'sans-serif', fontSize: 14, fill: 0xffffff },
     })
     label.anchor.set(0.5)
@@ -206,7 +224,7 @@ export class DebugScene extends Container {
 
     this.toolbar.addChild(container)
 
-    this.toolbarButtons.push({ container, bg, label, active, onClick })
+    this.toolbarButtons.push({ container, bg, label, width, labelText, active, onClick })
     return x + width + 6
   }
 
@@ -223,8 +241,11 @@ export class DebugScene extends Container {
 
   private refreshToolbar(): void {
     for (const button of this.toolbarButtons) {
-      const width = (button.bg.bounds.maxX - button.bg.bounds.minX) || 80
-      this.drawToolbarButtonBg(button.bg, width, button.active())
+      this.drawToolbarButtonBg(button.bg, button.width, button.active())
+      const newText = button.labelText()
+      if (button.label.text !== newText) {
+        button.label.text = newText
+      }
     }
   }
 
@@ -430,6 +451,9 @@ export class DebugScene extends Container {
 
   private updateStatusText(): void {
     const gravity = this.gravityEnabled ? '重力 ON' : '重力 OFF'
-    this.statusText.text = `${this.activePatternLabel}  /  ${gravity}  /  クリックで原点移動`
+    const next = `${this.activePatternLabel}  /  ${gravity}  /  クリックで原点移動`
+    if (this.statusText.text !== next) {
+      this.statusText.text = next
+    }
   }
 }
