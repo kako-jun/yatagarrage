@@ -31,6 +31,10 @@
 
 技術ドキュメントは [CLAUDE.md](./CLAUDE.md) と [docs/](./docs/) を参照してください。
 
+## 表示サイズ
+
+論理解像度は 800×600。canvas は CSS で拡大せず、`src/main.ts` の `renderer.resize()` と `stage.scale` で viewport に収まる実 canvas サイズへ合わせる。
+
 ## ライセンス
 
 MIT License — Copyright (c) 2025 kako-jun

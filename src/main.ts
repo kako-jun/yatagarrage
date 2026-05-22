@@ -7,6 +7,8 @@ import { SceneManager } from './scenes/SceneManager'
 import { TitleScene } from './scenes/TitleScene'
 import { createInitialGameState, VIEW_HEIGHT, VIEW_WIDTH } from './types/GameState'
 
+const VIEW_ASPECT = VIEW_WIDTH / VIEW_HEIGHT
+
 async function bootstrap(): Promise<void> {
   const root = document.getElementById('root')
   if (root === null) {
@@ -23,6 +25,20 @@ async function bootstrap(): Promise<void> {
     antialias: true,
   })
   root.appendChild(app.canvas)
+  const resizeCanvas = (): void => {
+    const windowAspect = window.innerWidth / window.innerHeight
+    const displayH =
+      windowAspect > VIEW_ASPECT
+        ? Math.floor(window.innerHeight)
+        : Math.floor(window.innerWidth / VIEW_ASPECT)
+    const displayW = Math.floor(displayH * VIEW_ASPECT)
+    app.renderer.resize(displayW, displayH)
+    app.stage.scale.set(displayW / VIEW_WIDTH)
+    app.canvas.style.width = `${displayW}px`
+    app.canvas.style.height = `${displayH}px`
+  }
+  resizeCanvas()
+  window.addEventListener('resize', resizeCanvas)
 
   const sceneManager = new SceneManager()
   app.stage.addChild(sceneManager.world)
